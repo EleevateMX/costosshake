@@ -18,7 +18,7 @@ Funciona 100% en el navegador (GitHub Pages), sin servidor ni base de datos.
 - Cada producto tiene **dos inventarios**: presentación original (bodega) e individual/porción (kiosko), cada uno con su **stock mínimo**.
 - Cada producto define una **equivalencia** (ej. 1 bote = 27 scoops, 1 caja = 12 piezas, 1 bolsa = 20 porciones).
 - El botón **⇄ Traspasar** mueve mercancía de bodega a kiosko según la equivalencia y **pide la clave del encargado** (se configura en Parámetros).
-- La pestaña **Inventario** centraliza todo con alertas de stock mínimo (🔴) y caducidad.
+- La pestaña **Inventario** tiene tres vistas (**Todos / Bodega / Kiosko**) con búsqueda, filtro por categoría, estados (OK / Bajo / Agotado) y alertas de caducidad. Desde Kiosko, si algo está bajo, el botón sugiere **Reponer** trayéndolo de bodega.
 
 ## Catálogos
 - Proteínas, Ingredientes (shakes/alimentos), Empaque, Bebidas y Snacks: con código/item,

@@ -102,6 +102,20 @@
   .tag2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:var(--cream);color:var(--green);padding:3px 8px;border-radius:6px}
   .addbar{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
   .sech{font-family:var(--display);color:var(--green);font-size:16px;font-weight:700;margin:22px 0 8px}
+  /* inventario */
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+  .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
+  .seg button.active{background:var(--green);color:var(--cream)}
+  .seg button:hover:not(.active){background:var(--paper)}
+  .filterbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .srch{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:0 12px;flex:1;min-width:220px}
+  .srch span{color:var(--muted)} .srch input{border:0;padding:11px 0;background:transparent} .srch input:focus{outline:0}
+  .filterbar select{max-width:240px;border-radius:12px;padding:11px 12px}
+  .empty{background:#fff;border:1px dashed var(--line);border-radius:14px;padding:34px;text-align:center;color:var(--muted)}
+  .statecell{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  .btn.tr.rep{background:var(--warn);color:#3a2406}
   /* modal */
   .modal-bg{position:fixed;inset:0;background:rgba(15,42,31,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:18px}
   .modal{background:#fff;border-radius:18px;max-width:420px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
@@ -339,7 +353,7 @@ function openTraspaso(cat,i){
 const TABS=[["dash","Resumen"],["shakes","Costeo Shakes"],["alimentos","Costeo Alimentos"],
   ["prot","Proteínas"],["ings","Ingred. Shakes"],["ingf","Ingred. Alimentos"],["emp","Empaque"],
   ["bebidas","Bebidas"],["snacks","Snacks/Treats"],["inv","Inventario"],["param","Parámetros"]];
-let tab="dash";
+let tab="dash",invView="todos",invSearch="",invCat="all";
 function renderNav(){
   document.getElementById("nav").innerHTML=TABS.map(([id,n])=>`<button data-tab="${id}" class="${id===tab?'active':''}">${n}</button>`).join("");
   document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;renderNav();render();window.scrollTo(0,0);});}
@@ -598,27 +612,97 @@ function renderResale(m,key,title){
   m.querySelector("#addR").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo producto",proveedor:"",ultimaCompra:"",caducidad:"",costo:"",precio:"",presOriginal:"",equivPiezas:"",invOriginal:"",minOriginal:"",invIndividual:"",minIndividual:""});save();render();};
 }
 
-/* ---------------- INVENTARIO (bodega/kiosko) ---------------- */
+/* ---------------- INVENTARIO (bodega / kiosko) ---------------- */
+const CATLABEL={proteins:"Proteínas",shakeIngs:"Ingred. shakes",foodIngs:"Ingred. alimentos",bebidas:"Bebidas",snacks:"Snacks"};
+function invPres(cat,it){if(cat==="proteins")return it.pres?(it.pres+" g/bote"):"Bote";
+  if(cat==="shakeIngs"||cat==="foodIngs")return it.presCompra||"Presentación";return it.presOriginal||"Caja";}
+function stockState(v,min){const n=+v||0,m=+min||0;
+  if(n<=0)return{cls:"bad",txt:"Agotado"};if(m>0&&n<=m)return{cls:"warn",txt:"Bajo"};return{cls:"ok",txt:"OK"};}
+function stateCell(v,min){const s=stockState(v,min);return `<span class="statecell"><span class="dot ${s.cls}"></span><span class="pill ${s.cls}">${s.txt}</span></span>`;}
+function cadCell(d){if(!d)return '<span class="muted">—</span>';const dt=daysTo(d),c=cadClass(d)||"ok";return `<span class="pill ${c}">${dt<0?"Vencido":dt+" d"}</span>`;}
+function collectInv(){let rows=[];Object.keys(INV).forEach(cat=>{if(invCat!=="all"&&invCat!==cat)return;const cfg=INV[cat];
+  state[cat].forEach((it,i)=>{const name=cfg.name(it);
+    if(invSearch){const q=invSearch.toLowerCase();if(!(name.toLowerCase().includes(q)||String(it.codigo||"").toLowerCase().includes(q)))return;}
+    rows.push({cat,i,it,cfg,name});});});return rows;}
+
 function renderInventario(m){
-  let html=`<h2>Inventario · Bodega → Kiosko</h2><p class="hint">Bodega = presentación original. Kiosko = venta individual/porción. El botón <b>Traspasar</b> mueve mercancía de bodega a kiosko según la equivalencia y pide la clave del encargado. 🔴 = stock en o por debajo del mínimo.</p>`;
-  Object.keys(INV).forEach(cat=>{const cfg=INV[cat];
-    html+=`<div class="sech">${cfg.label}</div><div class="scroll"><table><thead><tr>
-     <th class="sticky">Producto</th><th>Código</th><th class="num">Bodega (${cfg.origUnit})</th><th class="num">Mín</th>
-     <th class="num">Kiosko (${cfg.indUnit})</th><th class="num">Mín</th><th class="num">${cfg.equivLbl}</th><th>Caducidad</th><th>Acción</th></tr></thead><tbody>
-     ${state[cat].map((it,i)=>{const eq=cfg.equiv(it),dc=cadClass(it[cfg.cad]),dt=daysTo(it[cfg.cad]);
-       const lo=low(it[cfg.orig],it[cfg.origMin]),li=low(it[cfg.ind],it[cfg.indMin]);
-       return `<tr data-cat="${cat}" data-i="${i}">
-        <td class="sticky">${esc(cfg.name(it))}</td><td class="muted">${esc(it.codigo)}</td>
-        <td class="num">${lo?`<span class="pill bad">${num(it[cfg.orig])}</span>`:num(it[cfg.orig])}</td>
-        <td class="num muted">${num(it[cfg.origMin])}</td>
-        <td class="num">${li?`<span class="pill bad">${num(it[cfg.ind])}</span>`:num(it[cfg.ind])}</td>
-        <td class="num muted">${num(it[cfg.indMin])}</td>
-        <td class="num">${eq||'<span class="muted">—</span>'}</td>
-        <td>${it[cfg.cad]?`<span class="pill ${dc||'ok'}">${dt<0?'Vencido':dt+'d'}</span>`:'<span class="muted">—</span>'}</td>
-        <td><button class="btn tr" data-act="tr">⇄ Traspasar</button></td></tr>`;}).join("")}
-     </tbody></table></div>`;});
-  m.innerHTML=html;
-  m.querySelectorAll('tr[data-cat]').forEach(tr=>{tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(tr.dataset.cat,+tr.dataset.i);});
+  m.innerHTML=`<h2>Inventario</h2>
+   <p class="hint"><b>Bodega</b> = mercancía en presentación original (abajo). <b>Kiosko</b> = lo disponible para venta individual o por porción. Cambia de vista, busca o filtra, y traspasa de bodega a kiosko desde aquí — pide la clave del encargado.</p>
+   <div class="seg" id="invSeg" role="tablist">
+     <button data-v="todos" class="${invView==="todos"?"active":""}">Todos</button>
+     <button data-v="bodega" class="${invView==="bodega"?"active":""}">🏬 Bodega</button>
+     <button data-v="kiosko" class="${invView==="kiosko"?"active":""}">🛒 Kiosko</button>
+   </div>
+   <div class="filterbar">
+     <div class="srch"><span>🔎</span><input id="invSearch" placeholder="Buscar por nombre o código…" value="${esc(invSearch)}" aria-label="Buscar producto"></div>
+     <select id="invCat" aria-label="Filtrar por categoría">
+       <option value="all" ${invCat==="all"?"selected":""}>Todas las categorías</option>
+       ${Object.keys(CATLABEL).map(c=>`<option value="${c}" ${invCat===c?"selected":""}>${CATLABEL[c]}</option>`).join("")}
+     </select>
+   </div>
+   <div id="invBody"></div>`;
+  const seg=m.querySelector("#invSeg");
+  seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{invView=b.dataset.v;seg.querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));paintInv();});
+  m.querySelector("#invSearch").addEventListener("input",e=>{invSearch=e.target.value;paintInv();});
+  m.querySelector("#invCat").addEventListener("change",e=>{invCat=e.target.value;paintInv();});
+  paintInv();
+}
+function kpis(arr){
+  let total=arr.length,bajo=0,agot=0,cad=0;
+  arr.forEach(({it,cfg})=>{
+    const so=stockState(it[cfg.orig],it[cfg.origMin]),si=stockState(it[cfg.ind],it[cfg.indMin]);
+    let st="ok"; if(invView==="bodega")st=so.cls; else if(invView==="kiosko")st=si.cls; else st=(so.cls==="bad"||si.cls==="bad")?"bad":(so.cls==="warn"||si.cls==="warn")?"warn":"ok";
+    if(st==="bad")agot++; else if(st==="warn")bajo++;
+    if(cadClass(it[cfg.cad]))cad++;
+  });
+  return `<div class="cards">
+    <div class="card"><div class="k">Productos</div><div class="v">${total}</div></div>
+    <div class="card"><div class="k">Stock bajo</div><div class="v" style="color:${bajo?"var(--warn)":"var(--ok)"}">${bajo}</div></div>
+    <div class="card"><div class="k">Agotados</div><div class="v" style="color:${agot?"var(--bad)":"var(--ok)"}">${agot}</div></div>
+    <div class="card"><div class="k">Por caducar / vencidos</div><div class="v" style="color:${cad?"var(--warn)":"var(--ok)"}">${cad}</div></div>
+  </div>`;
+}
+function paintInv(){
+  const body=document.getElementById("invBody");if(!body)return;
+  const rows=collectInv();
+  if(!rows.length){body.innerHTML=kpis(rows)+`<div class="empty">No hay productos que coincidan con la búsqueda o el filtro.</div>`;return;}
+  let head,bodyRows;
+  if(invView==="bodega"){
+    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th>Presentación</th><th class="num">En bodega</th><th class="num">Mín</th><th>Estado</th><th>Caducidad</th><th>Acción</th>`;
+    bodyRows=rows.map(({cat,i,it,cfg,name})=>`<tr data-cat="${cat}" data-i="${i}">
+      <td class="sticky">${esc(name)}</td><td class="muted">${CATLABEL[cat]}</td><td class="muted">${esc(it.codigo)}</td>
+      <td>${esc(invPres(cat,it))}</td>
+      <td class="num">${num(it[cfg.orig])} <span class="muted" style="font-size:11px">${cfg.origUnit}</span></td>
+      <td class="num muted">${num(it[cfg.origMin])}</td>
+      <td>${stateCell(it[cfg.orig],it[cfg.origMin])}</td>
+      <td>${cadCell(it[cfg.cad])}</td>
+      <td><button class="btn tr" data-act="tr" title="Traspasar a kiosko">⇄ Traspasar</button></td></tr>`).join("");
+  } else if(invView==="kiosko"){
+    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th class="num">Disponible</th><th class="num">Mín</th><th>Estado</th><th class="num">En bodega</th><th>Acción</th>`;
+    bodyRows=rows.map(({cat,i,it,cfg,name})=>{const s=stockState(it[cfg.ind],it[cfg.indMin]);
+      const needsRefill=(s.cls!=="ok")&&((+it[cfg.orig]||0)>0);
+      return `<tr data-cat="${cat}" data-i="${i}">
+      <td class="sticky">${esc(name)}</td><td class="muted">${CATLABEL[cat]}</td><td class="muted">${esc(it.codigo)}</td>
+      <td class="num">${num(it[cfg.ind])} <span class="muted" style="font-size:11px">${cfg.indUnit}</span></td>
+      <td class="num muted">${num(it[cfg.indMin])}</td>
+      <td>${stateCell(it[cfg.ind],it[cfg.indMin])}</td>
+      <td class="num muted">${num(it[cfg.orig])} ${cfg.origUnit}</td>
+      <td><button class="btn tr ${needsRefill?"rep":""}" data-act="tr" title="Traer de bodega">⇄ ${needsRefill?"Reponer":"Traspasar"}</button></td></tr>`;}).join("");
+  } else {
+    head=`<th class="sticky">Producto</th><th>Categoría</th><th class="num">Bodega</th><th class="num">Kiosko</th><th>Estado</th><th>Caducidad</th><th>Acción</th>`;
+    bodyRows=rows.map(({cat,i,it,cfg,name})=>{const so=stockState(it[cfg.orig],it[cfg.origMin]),si=stockState(it[cfg.ind],it[cfg.indMin]);
+      const worst=(so.cls==="bad"||si.cls==="bad")?{cls:"bad",txt:"Revisar"}:(so.cls==="warn"||si.cls==="warn")?{cls:"warn",txt:"Bajo"}:{cls:"ok",txt:"OK"};
+      return `<tr data-cat="${cat}" data-i="${i}">
+      <td class="sticky">${esc(name)}</td><td class="muted">${CATLABEL[cat]}</td>
+      <td class="num">${num(it[cfg.orig])} <span class="muted" style="font-size:11px">${cfg.origUnit}</span></td>
+      <td class="num">${num(it[cfg.ind])} <span class="muted" style="font-size:11px">${cfg.indUnit}</span></td>
+      <td><span class="statecell"><span class="dot ${worst.cls}"></span><span class="pill ${worst.cls}">${worst.txt}</span></span></td>
+      <td>${cadCell(it[cfg.cad])}</td>
+      <td><button class="btn tr" data-act="tr" title="Traspasar a kiosko">⇄ Traspasar</button></td></tr>`;}).join("");
+  }
+  body.innerHTML=kpis(rows)+`<div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${bodyRows}</tbody></table></div>
+    <p class="legend"><span class="pill ok">OK</span> sobre el mínimo · <span class="pill warn">Bajo</span> en o bajo el mínimo · <span class="pill bad">Agotado</span> sin existencias. Caducidad: 🟡 ≤14 días o vencido.</p>`;
+  body.querySelectorAll('[data-act="tr"]').forEach(b=>{const tr=b.closest("tr");b.onclick=()=>openTraspaso(tr.dataset.cat,+tr.dataset.i);});
 }
 
 /* ---------------- RESPALDO / CSV ---------------- */
