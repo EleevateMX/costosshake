@@ -119,6 +119,23 @@
   .exist .ivv{font-family:var(--display);font-size:18px;font-weight:700;color:var(--green)}
   .po-row{display:flex;gap:6px;align-items:center;margin:7px 0;flex-wrap:wrap}
   .po-row .rinde{font-size:11px;color:var(--muted);min-width:58px}
+  .icard{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 2px rgba(25,59,45,.04)}
+  .icard-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;background:var(--paper);border-bottom:1px solid var(--line)}
+  .icard-head .iname{font-family:var(--display);font-weight:600;font-size:16px;flex:1;min-width:150px;border:0;border-bottom:1px dashed var(--line);background:transparent;color:var(--green);border-radius:0;padding:4px 2px}
+  .icard-head .iname:focus{outline:0;border-bottom-color:var(--accent)}
+  .icard-head .icode{font-family:var(--display);font-weight:700;font-size:12px;background:var(--cream);color:var(--green);border:0;border-radius:8px;padding:6px 8px;width:104px;text-align:center}
+  .icard-acts{display:flex;gap:6px;flex-wrap:wrap}
+  .icard-body{padding:13px 14px}
+  .igroup{margin-bottom:13px}.igroup:last-child{margin-bottom:0}
+  .gtitle{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--green);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .gtitle::after{content:"";flex:1;height:1px;background:var(--line)}
+  .ifields{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
+  .fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .fld>span{font-size:10.5px;color:var(--muted);font-weight:600}
+  .fld.der{background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:6px 9px;justify-content:center}
+  .fld.der .dv{font-family:var(--display);font-weight:700;color:var(--green);font-variant-numeric:tabular-nums;font-size:14px;display:flex;align-items:center}
+  .fld .urow{display:flex;align-items:center;gap:6px}.fld .urow small{color:var(--muted);font-size:11px}
+  .ingsearch{width:100%;max-width:340px;margin:0 0 14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
   /* inventario */
   .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
@@ -594,42 +611,59 @@ function openPorciones(key,i){
 
 /* ---------------- INGREDIENTES ---------------- */
 function renderIngs(m,key,title){
-  m.innerHTML=`<h2>${title}</h2><p class="hint">Todo lo de “salida” se calcula solo (toca la <b>ⓘ</b> para ver la fórmula). La <b>porción</b> es la medida que usas (ej. 100 g): el <b>costo por porción</b> = porción × costo por unidad (lo que cuestan esos 100 g). Las <b>porciones por presentación</b> salen solas. Los mínimos son alertas de reorden: <b>Mín pres.</b> en bodega, <b>Mín porc.</b> en kiosko. Con el botón <b>Porc.</b> defines varias porciones del mismo ingrediente (ej. pollo: Ensalada 80 g, Sándwich 100 g) para usarlas en las recetas.</p>
-   <div class="scroll"><table><thead><tr>
-   <th class="sticky">Ingrediente</th><th>Código</th><th>Marca</th><th>Proveedor</th><th>F. compra</th><th>F. cad</th><th>Pres. compra</th>
-   <th>Unidad</th><th class="num">Contenido</th><th class="num">Costo compra</th><th class="num">Costo/u</th>
-   <th class="num">Porción</th><th class="num">Costo/porción</th><th class="num">Porc./pres.</th><th class="num">% ganancia</th><th class="num">Precio/porción</th>
-   <th class="num">Inv pres.</th><th class="num">Mín pres.</th><th class="num">Inv porc.</th><th class="num">Mín porc.</th><th>Acción</th></tr></thead><tbody>
-   ${state[key].map((it,i)=>ingRow(it,i)).join("")}</tbody></table></div>
-   <div class="addbar"><button class="btn ghost" id="addI">+ Agregar ingrediente</button></div>`;
-  state[key].forEach((it,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);bindRow(tr,key,i,updIngRow);
-    tr.querySelector('[data-act="porc"]').onclick=()=>openPorciones(key,i);
-    tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
-    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+it.nombre+"?")){state[key].splice(i,1);save();render();}};});
-  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",stockBase:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
+  m.innerHTML=`<h2>${title}</h2><p class="hint">Captura cada ingrediente en su tarjeta. Lo de <b>“salida”</b> (costo por unidad, costo y precio por porción, porciones por presentación) se calcula solo — toca la <b>ⓘ</b> para ver la fórmula. Con <b>Porciones</b> defines varias porciones del mismo ingrediente y su existencia (ej. Pollo: Ensalada 80 g, Sándwich 100 g).</p>
+   <input class="ingsearch" id="ingSearch" placeholder="🔎 Buscar ingrediente…">
+   <div id="icards">${state[key].map((it,i)=>ingCard(it,i)).join("")}</div>
+   <div class="addbar"><button class="btn" id="addI">+ Agregar ingrediente</button></div>`;
+  state[key].forEach((it,i)=>{const card=m.querySelector(`.icard[data-i="${i}"]`);bindRow(card,key,i,updIngRow);
+    card.querySelector('[data-act="porc"]').onclick=()=>openPorciones(key,i);
+    card.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
+    card.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+(it.nombre||"este ingrediente")+"?")){state[key].splice(i,1);save();render();}};});
+  const sb=m.querySelector("#ingSearch");
+  sb.addEventListener("input",e=>{const q=e.target.value.toLowerCase();
+    m.querySelectorAll(".icard").forEach((c,idx)=>{const nm=(state[key][idx].nombre||"").toLowerCase();c.style.display=nm.indexOf(q)>=0?"":"none";});});
+  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",stockBase:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();
+    const last=document.querySelector("#icards .icard:last-child");
+    if(last){last.scrollIntoView({behavior:"smooth",block:"center"});const nm=last.querySelector(".iname");if(nm)nm.focus();}};
 }
-function ingRow(it,i){return `<tr data-i="${i}">
-   <td class="sticky"><input class="w-tx" data-f="nombre" value="${esc(it.nombre)}" style="font-weight:600"></td>
-   <td><input class="w-md" data-f="codigo" value="${esc(it.codigo)}"></td>
-   <td><input class="w-tx" data-f="marca" value="${esc(it.marca)}"></td>
-   <td><input class="w-tx" data-f="proveedor" value="${esc(it.proveedor)}"></td>
-   <td><input type="date" class="w-dt" data-f="fechaCompra" value="${esc(it.fechaCompra)}"></td>
-   <td><input type="date" class="w-dt" data-f="fechaCaducidad" value="${esc(it.fechaCaducidad)}"></td>
-   <td><input class="w-tx" data-f="presCompra" value="${esc(it.presCompra)}" placeholder="Bolsa 1 kg"></td>
-   <td><select data-f="unidad">${["g","ml","pz"].map(u=>`<option ${u===it.unidad?'selected':''}>${u}</option>`).join("")}</select></td>
-   <td><input class="n w-sm" data-f="cont" value="${esc(it.cont)}"></td>
-   <td><input class="n w-sm" data-f="costo" value="${esc(it.costo)}"></td>
-   <td class="num derived" data-d="cpu">${ingCpu(it)}</td>
-   <td><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end"><input class="n" style="width:62px" data-f="porcionQty" value="${esc(it.porcionQty)}" placeholder="100"><span class="muted" style="font-size:11px">${it.unidad}</span></div></td>
-   <td class="num derived" data-d="cpor">${ingCpor(it)}</td>
-   <td class="num derived" data-d="ppres">${ingPpres(it)}</td>
-   <td><input class="n w-sm" data-f="gananciaPct" value="${esc(it.gananciaPct)}" placeholder="%"></td>
-   <td class="num derived" data-d="ppor" style="font-weight:700;color:var(--green)">${ingPpor(it)}</td>
-   <td><input class="n w-sm" data-f="invOriginal" value="${esc(it.invOriginal)}"></td>
-   <td><input class="n w-sm" data-f="minOriginal" value="${esc(it.minOriginal)}"></td>
-   <td><input class="n w-sm" data-f="invPorcion" value="${esc(it.invPorcion)}"></td>
-   <td><input class="n w-sm" data-f="minPorcion" value="${esc(it.minPorcion)}"></td>
-   <td><div style="display:flex;gap:5px"><button class="btn mini ghost" data-act="porc" title="Porciones por platillo (Ensalada, Sándwich…)" style="padding:5px 8px;font-size:11px">Porc.</button><button class="btn tr" data-act="tr" title="Traspasar pres. → porciones">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}
+function ingCard(it,i){const uOpts=["g","ml","pz"].map(u=>`<option ${u===it.unidad?'selected':''}>${u}</option>`).join("");
+ return `<div class="icard" data-i="${i}">
+   <div class="icard-head">
+     <input class="iname" data-f="nombre" value="${esc(it.nombre)}" placeholder="Nombre del ingrediente">
+     <input class="icode" data-f="codigo" value="${esc(it.codigo)}" placeholder="Código" title="Código / SKU">
+     <div class="icard-acts">
+       <button class="btn mini ghost" data-act="porc" title="Porciones y existencia (ej. Ensalada / Sándwich)">Porciones</button>
+       <button class="btn tr" data-act="tr" title="Traspasar presentación → porciones">⇄</button>
+       <button class="xbtn" data-act="del" title="Eliminar">✕</button>
+     </div>
+   </div>
+   <div class="icard-body">
+     <div class="igroup"><div class="gtitle">Compra</div><div class="ifields">
+       <label class="fld"><span>Marca</span><input data-f="marca" value="${esc(it.marca)}"></label>
+       <label class="fld"><span>Proveedor</span><input data-f="proveedor" value="${esc(it.proveedor)}"></label>
+       <label class="fld"><span>Presentación</span><input data-f="presCompra" value="${esc(it.presCompra)}" placeholder="Bolsa 1 kg"></label>
+       <label class="fld"><span>Unidad</span><select data-f="unidad">${uOpts}</select></label>
+       <label class="fld"><span>Contenido</span><input class="n" data-f="cont" value="${esc(it.cont)}"></label>
+       <label class="fld"><span>Costo de compra</span><input class="n" data-f="costo" value="${esc(it.costo)}"></label>
+       <div class="fld der"><span>Costo por unidad</span><div class="dv" data-d="cpu">${ingCpu(it)}</div></div>
+       <label class="fld"><span>F. compra</span><input type="date" data-f="fechaCompra" value="${esc(it.fechaCompra)}"></label>
+       <label class="fld"><span>Caducidad</span><input type="date" data-f="fechaCaducidad" value="${esc(it.fechaCaducidad)}"></label>
+     </div></div>
+     <div class="igroup"><div class="gtitle">Porción y precio</div><div class="ifields">
+       <label class="fld"><span>Porción (medida)</span><div class="urow"><input class="n" data-f="porcionQty" value="${esc(it.porcionQty)}" placeholder="100"><small>${esc(it.unidad)}</small></div></label>
+       <div class="fld der"><span>Costo por porción</span><div class="dv" data-d="cpor">${ingCpor(it)}</div></div>
+       <div class="fld der"><span>Porciones por presentación</span><div class="dv" data-d="ppres">${ingPpres(it)}</div></div>
+       <label class="fld"><span>% de ganancia</span><input class="n" data-f="gananciaPct" value="${esc(it.gananciaPct)}" placeholder="%"></label>
+       <div class="fld der"><span>Precio por porción</span><div class="dv" data-d="ppor">${ingPpor(it)}</div></div>
+     </div></div>
+     <div class="igroup"><div class="gtitle">Inventario</div><div class="ifields">
+       <label class="fld"><span>Inv. presentaciones (bodega)</span><input class="n" data-f="invOriginal" value="${esc(it.invOriginal)}"></label>
+       <label class="fld"><span>Mínimo presentaciones</span><input class="n" data-f="minOriginal" value="${esc(it.minOriginal)}"></label>
+       <label class="fld"><span>Inv. porciones (kiosko)</span><input class="n" data-f="invPorcion" value="${esc(it.invPorcion)}"></label>
+       <label class="fld"><span>Mínimo porciones</span><input class="n" data-f="minPorcion" value="${esc(it.minPorcion)}"></label>
+     </div></div>
+   </div>
+ </div>`;}
 function updIngRow(tr,it){tr.querySelector('[data-d="cpu"]').innerHTML=ingCpu(it);
   tr.querySelector('[data-d="cpor"]').innerHTML=ingCpor(it);
   tr.querySelector('[data-d="ppres"]').innerHTML=ingPpres(it);
