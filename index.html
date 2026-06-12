@@ -186,7 +186,8 @@ const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createC
 let currentUser=null;
 const fmt=(n)=> (n||n===0)? "$"+Number(n).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}):"–";
 const num=(n)=> (n||n===0)? Number(n).toLocaleString("es-MX"):"0";
-const pct=(n)=> (n||n===0)? (n*100).toFixed(1)+"%":"–";
+const fmtU=(n)=> (n||n===0)? "$"+Number(n).toLocaleString("es-MX",{minimumFractionDigits:4,maximumFractionDigits:4}):"–";
+const pct=(n)=> (n||n===0)? (n*100).toFixed(2)+"%":"–";
 const round5=(n)=> n? Math.round(n/5)*5 : 0;
 const esc=(s)=> (s==null?"":String(s)).replace(/"/g,"&quot;");
 function lsGet(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
@@ -331,8 +332,8 @@ function showInfo(html){const host=document.getElementById("modalHost");
   host.querySelector("#info_ok").onclick=()=>host.innerHTML="";
   host.querySelector(".modal-bg").onclick=ev=>{if(ev.target.classList.contains("modal-bg"))host.innerHTML="";};}
 document.addEventListener("click",ev=>{const el=ev.target.closest&&ev.target.closest(".info");if(el){ev.stopPropagation();showInfo(el.getAttribute("data-info"));}});
-function ingCpu(it){const v=costPerUnit(it),u=it.unidad||"u";return fmt(v)+infoIcon(`<b>Costo por ${u}</b><br>Costo de compra ÷ contenido<br>$${(+it.costo||0)} ÷ ${(+it.cont||0)} ${u} = <b>${fmt(v)}</b> por ${u}`);}
-function ingCpor(it){const q=+it.porcionQty||0,u=it.unidad||"u",cu=costPerUnit(it),v=costPortion(it);return fmt(v)+infoIcon(`<b>Costo por porción</b> (${q} ${u})<br>Porción × costo por ${u}<br>${q} ${u} × ${fmt(cu)} = <b>${fmt(v)}</b>`);}
+function ingCpu(it){const v=costPerUnit(it),u=it.unidad||"u";return fmtU(v)+infoIcon(`<b>Costo por ${u}</b><br>Costo de compra ÷ contenido<br>$${(+it.costo||0)} ÷ ${(+it.cont||0)} ${u} = <b>${fmtU(v)}</b> por ${u}`);}
+function ingCpor(it){const q=+it.porcionQty||0,u=it.unidad||"u",cu=costPerUnit(it),v=costPortion(it);return fmt(v)+infoIcon(`<b>Costo por porción</b> (${q} ${u})<br>Porción × costo por ${u}<br>${q} ${u} × ${fmtU(cu)} = <b>${fmt(v)}</b>`);}
 function ingPpres(it){const v=porcPres(it),u=it.unidad||"u";return num(Math.floor(v))+infoIcon(`<b>Porciones por presentación</b><br>Contenido ÷ porción<br>${(+it.cont||0)} ${u} ÷ ${(+it.porcionQty||0)} ${u} = <b>${num(Math.floor(v))}</b> porciones`);}
 function ingPpor(it){const g=+it.gananciaPct||0,c=costPortion(it),v=pricePortion(it);return fmt(v)+infoIcon(`<b>Precio por porción</b><br>Costo por porción × (1 + % ganancia)<br>${fmt(c)} × (1 + ${g}%) = <b>${fmt(v)}</b>`);}
 function findProt(key){return state.proteins.find(p=>protKey(p)===key);}
@@ -470,10 +471,10 @@ function renderParams(m){const p=state.params;
 }
 
 /* ---------------- PROTEÍNAS ---------------- */
-function cpsCell(p){const v=costPerScoop(p);return fmt(v)+infoIcon(`<b>Costo por scoop</b><br>Costo del bote ÷ scoops por bote<br>$${(+p.costo||0)} ÷ ${(+p.scoops||0)} = <b>${fmt(v)}</b>`);}
-function utilCell(p){const c=costPerScoop(p),v=(+p.precioScoop||0)-c;return fmt(v)+infoIcon(`<b>Utilidad por scoop</b><br>Precio por scoop − costo por scoop<br>$${(+p.precioScoop||0)} − ${fmt(c)} = <b>${fmt(v)}</b>`);}
+function cpsCell(p){const v=costPerScoop(p);return fmtU(v)+infoIcon(`<b>Costo por scoop</b><br>Costo del bote ÷ scoops por bote<br>$${(+p.costo||0)} ÷ ${(+p.scoops||0)} = <b>${fmtU(v)}</b>`);}
+function utilCell(p){const c=costPerScoop(p),v=(+p.precioScoop||0)-c;return fmtU(v)+infoIcon(`<b>Utilidad por scoop</b><br>Precio por scoop − costo por scoop<br>$${(+p.precioScoop||0)} − ${fmtU(c)} = <b>${fmtU(v)}</b>`);}
 function totBlocks(c){const I=(l,v,info)=>`<div><div class="t">${l}</div><div class="tv">${v}${info?infoIcon(info):""}</div></div>`;
-  const mp=(c.merma*100).toFixed(1),ivap=(state.params.iva*100).toFixed(0),fcm=(state.params.foodCost*100).toFixed(0);
+  const mp=(c.merma*100).toFixed(2),ivap=(state.params.iva*100).toFixed(0),fcm=(state.params.foodCost*100).toFixed(0);
   return I("Insumos",fmt(c.ins),`<b>Insumos</b><br>Suma del costo de la proteína (scoops × costo por scoop) y de cada ingrediente (cantidad × costo por unidad).`)
    +I("+ Merma",fmt(c.conMerma),`<b>Con merma</b><br>Insumos × (1 + merma)<br>${fmt(c.ins)} × (1 + ${mp}%) = <b>${fmt(c.conMerma)}</b>`)
    +I("+ Empaque",fmt(c.empaque),`<b>Empaque</b><br>Costo del combo de empaque marcado (vaso, tapa, popote, servilleta…).`)
@@ -768,11 +769,11 @@ function download(name,content,mime){const blob=new Blob([content],{type:mime});
 function backup(){download(`shakeaholic_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(state,null,2),"application/json");}
 function exportCsv(){
   const rows=[["Tipo","Item","Producto","Costo total","Precio","Sin IVA","Food cost %","Margen $","Margen %","Precio ref."]];
-  const push=(t,r,c)=>rows.push([t,r.codigo||"",r.nombre,c.total.toFixed(2),(c.precio||0).toFixed(2),c.sinIva.toFixed(2),(c.fc*100).toFixed(1),c.margen.toFixed(2),(c.margenPct*100).toFixed(1),round5(c.sugerido)]);
+  const push=(t,r,c)=>rows.push([t,r.codigo||"",r.nombre,c.total.toFixed(2),(c.precio||0).toFixed(2),c.sinIva.toFixed(2),(c.fc*100).toFixed(2),c.margen.toFixed(2),(c.margenPct*100).toFixed(2),round5(c.sugerido)]);
   state.shakeRecipes.forEach(r=>{const c=calcShake(r);if(c.precio>0)push("Shake",r,c);});
   state.foodRecipes.forEach(r=>{const c=calcFood(r);if(c.precio>0)push("Alimento",r,c);});
   const rs=(arr,t)=>arr.forEach(p=>{const precio=+p.precio||0;if(precio>0){const sin=precio/(1+state.params.iva);const mg=sin-(+p.costo||0);
-    rows.push([t,p.codigo||"",p.nombre,(+p.costo||0).toFixed(2),precio.toFixed(2),sin.toFixed(2),((+p.costo||0)/sin*100).toFixed(1),mg.toFixed(2),(mg/sin*100).toFixed(1),""]);}});
+    rows.push([t,p.codigo||"",p.nombre,(+p.costo||0).toFixed(2),precio.toFixed(2),sin.toFixed(2),((+p.costo||0)/sin*100).toFixed(2),mg.toFixed(2),(mg/sin*100).toFixed(2),""]);}});
   rs(state.bebidas,"Bebida");rs(state.snacks,"Snack/Treat");
   const csv="\ufeff"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
   download(`shakeaholic_costeo_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");}
