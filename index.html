@@ -102,6 +102,10 @@
   .tag2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:var(--cream);color:var(--green);padding:3px 8px;border-radius:6px}
   .addbar{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
   .sech{font-family:var(--display);color:var(--green);font-size:16px;font-weight:700;margin:22px 0 8px}
+  .info{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--cream);color:var(--green);font-size:10px;font-weight:700;font-style:italic;font-family:Georgia,serif;cursor:pointer;margin-left:5px;border:1px solid var(--accent);vertical-align:middle;line-height:1}
+  .info:hover{background:var(--accent)}
+  .infobody{font-size:13px;line-height:1.7;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .infobody b{color:var(--green)}
   /* inventario */
   .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
@@ -236,11 +240,11 @@ function defaultState(){
     P("Optimum Nutrition Whey","Chocolate"),P("Optimum Nutrition Whey","Vanilla"),P("Mutant Whey","Chocolate"),
     P("Mutant Whey","Vanilla"),P("Mutant Whey","Triple Chocolate"),
   ];
-  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
+  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
   const shakeIngs=[
     ing("Leche deslactosada",{unidad:"ml",cont:1000,costo:32,presCompra:"Litro"}),ing("Leche de almendras"),ing("Leche de avena"),ing("Leche de coco"),
     ing("Yogurt griego"),ing("Plátano",{unidad:"g",cont:1000,costo:25}),ing("Piña congelada"),
-    ing("Mango congelado",{unidad:"g",cont:1000,costo:90,presCompra:"Bolsa 1 kg",equivPorciones:20,invOriginal:2,minOriginal:1,porcionNombre:"100 g",gananciaPct:150}),
+    ing("Mango congelado",{unidad:"g",cont:1000,costo:90,presCompra:"Bolsa 1 kg",porcionQty:100,invOriginal:2,minOriginal:1,gananciaPct:150}),
     ing("Fresas congeladas"),ing("Arándanos congelados",{presCompra:"Caja",equivPorciones:8,invOriginal:3,minOriginal:1,porcionNombre:"1/2 taza"}),
     ing("Fresas frescas"),ing("Arándanos frescos"),ing("Acai"),ing("Limón"),ing("Espinaca congelada"),
     ing("Crema de cacahuate",{unidad:"g",cont:1000,costo:180}),ing("Crema de pistachio"),ing("Crema de coco"),
@@ -282,7 +286,7 @@ function migrate(s){
   s.params=Object.assign({foodCost:0.30,iva:0.16,merma:0.08,mano:0,clave:"1234"},s.params);
   fill(s.proteins,{codigo:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",precioScoop:"",precioBote:"",invOriginal:"",minOriginal:"",invScoops:"",minScoops:""});
   (s.proteins||[]).forEach(p=>{if((p.invOriginal===""||p.invOriginal==null)&&p.stock)p.invOriginal=p.stock;});
-  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
+  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
   fill(s.shakeIngs,idf);fill(s.foodIngs,idf);
   [...(s.shakeIngs||[]),...(s.foodIngs||[])].forEach(it=>{if((it.invOriginal===""||it.invOriginal==null)&&it.stock)it.invOriginal=it.stock;});
   fill(s.empaque,{codigo:"",proveedor:"",ultimaCompra:"",stock:"",stockMin:""});
@@ -318,8 +322,19 @@ function setSaved(t){const e=document.getElementById("saved");if(e)e.textContent
 function protKey(p){return p.marca+" - "+p.sabor;}
 function costPerScoop(p){const c=+p.costo,s=+p.scoops;return c&&s?c/s:0;}
 function costPerUnit(i){const c=+i.cont,p=+i.costo;return c&&p?p/c:0;}
-function costPortion(it){const c=+it.costo,e=+it.equivPorciones;return c&&e?c/e:0;}
+function costPortion(it){const q=+it.porcionQty,cu=costPerUnit(it);return q&&cu?q*cu:0;}
 function pricePortion(it){const g=+it.gananciaPct||0;return costPortion(it)*(1+g/100);}
+function porcPres(it){const c=+it.cont,q=+it.porcionQty;return c&&q?c/q:0;}
+function infoIcon(html){return `<span class="info" data-info="${esc(html)}" title="¿De dónde sale?">i</span>`;}
+function showInfo(html){const host=document.getElementById("modalHost");
+  host.innerHTML=`<div class="modal-bg"><div class="modal"><h3>¿De dónde sale?</h3><div class="infobody">${html}</div><div class="mrow" style="margin-top:14px"><button class="btn mini" id="info_ok">Entendido</button></div></div></div>`;
+  host.querySelector("#info_ok").onclick=()=>host.innerHTML="";
+  host.querySelector(".modal-bg").onclick=ev=>{if(ev.target.classList.contains("modal-bg"))host.innerHTML="";};}
+document.addEventListener("click",ev=>{const el=ev.target.closest&&ev.target.closest(".info");if(el){ev.stopPropagation();showInfo(el.getAttribute("data-info"));}});
+function ingCpu(it){const v=costPerUnit(it),u=it.unidad||"u";return fmt(v)+infoIcon(`<b>Costo por ${u}</b><br>Costo de compra ÷ contenido<br>$${(+it.costo||0)} ÷ ${(+it.cont||0)} ${u} = <b>${fmt(v)}</b> por ${u}`);}
+function ingCpor(it){const q=+it.porcionQty||0,u=it.unidad||"u",cu=costPerUnit(it),v=costPortion(it);return fmt(v)+infoIcon(`<b>Costo por porción</b> (${q} ${u})<br>Porción × costo por ${u}<br>${q} ${u} × ${fmt(cu)} = <b>${fmt(v)}</b>`);}
+function ingPpres(it){const v=porcPres(it),u=it.unidad||"u";return num(Math.floor(v))+infoIcon(`<b>Porciones por presentación</b><br>Contenido ÷ porción<br>${(+it.cont||0)} ${u} ÷ ${(+it.porcionQty||0)} ${u} = <b>${num(Math.floor(v))}</b> porciones`);}
+function ingPpor(it){const g=+it.gananciaPct||0,c=costPortion(it),v=pricePortion(it);return fmt(v)+infoIcon(`<b>Precio por porción</b><br>Costo por porción × (1 + % ganancia)<br>${fmt(c)} × (1 + ${g}%) = <b>${fmt(v)}</b>`);}
 function findProt(key){return state.proteins.find(p=>protKey(p)===key);}
 function findIng(list,name){return list.find(i=>i.nombre===name);}
 function comboShake(){return state.empaque.filter(e=>e.shake).reduce((a,e)=>a+(+e.costo||0),0);}
@@ -342,8 +357,8 @@ function fcClass(fc){if(!fc)return"";return fc>0.4?"bad":fc>state.params.foodCos
 /* ---------------- INVENTARIO / TRASPASOS ---------------- */
 const INV={
   proteins:{label:"Proteínas",name:p=>protKey(p),orig:"invOriginal",origMin:"minOriginal",origUnit:"botes",ind:"invScoops",indMin:"minScoops",indUnit:"scoops",equiv:p=>+p.scoops||0,equivLbl:"scoops/bote",cad:"fechaCaducidad"},
-  shakeIngs:{label:"Ingredientes shakes",name:i=>i.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"pres.",ind:"invPorcion",indMin:"minPorcion",indUnit:"porciones",equiv:i=>+i.equivPorciones||0,equivLbl:"porciones/pres.",cad:"fechaCaducidad"},
-  foodIngs:{label:"Ingredientes alimentos",name:i=>i.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"pres.",ind:"invPorcion",indMin:"minPorcion",indUnit:"porciones",equiv:i=>+i.equivPorciones||0,equivLbl:"porciones/pres.",cad:"fechaCaducidad"},
+  shakeIngs:{label:"Ingredientes shakes",name:i=>i.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"pres.",ind:"invPorcion",indMin:"minPorcion",indUnit:"porciones",equiv:i=>{const c=+i.cont,q=+i.porcionQty;return c&&q?Math.floor(c/q):0;},equivLbl:"porciones/pres.",cad:"fechaCaducidad"},
+  foodIngs:{label:"Ingredientes alimentos",name:i=>i.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"pres.",ind:"invPorcion",indMin:"minPorcion",indUnit:"porciones",equiv:i=>{const c=+i.cont,q=+i.porcionQty;return c&&q?Math.floor(c/q):0;},equivLbl:"porciones/pres.",cad:"fechaCaducidad"},
   bebidas:{label:"Bebidas",name:b=>b.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"cajas",ind:"invIndividual",indMin:"minIndividual",indUnit:"piezas",equiv:b=>+b.equivPiezas||0,equivLbl:"piezas/caja",cad:"caducidad"},
   snacks:{label:"Snacks/Treats",name:s=>s.nombre,orig:"invOriginal",origMin:"minOriginal",origUnit:"cajas",ind:"invIndividual",indMin:"minIndividual",indUnit:"piezas",equiv:s=>+s.equivPiezas||0,equivLbl:"piezas/caja",cad:"caducidad"},
 };
@@ -455,6 +470,17 @@ function renderParams(m){const p=state.params;
 }
 
 /* ---------------- PROTEÍNAS ---------------- */
+function cpsCell(p){const v=costPerScoop(p);return fmt(v)+infoIcon(`<b>Costo por scoop</b><br>Costo del bote ÷ scoops por bote<br>$${(+p.costo||0)} ÷ ${(+p.scoops||0)} = <b>${fmt(v)}</b>`);}
+function utilCell(p){const c=costPerScoop(p),v=(+p.precioScoop||0)-c;return fmt(v)+infoIcon(`<b>Utilidad por scoop</b><br>Precio por scoop − costo por scoop<br>$${(+p.precioScoop||0)} − ${fmt(c)} = <b>${fmt(v)}</b>`);}
+function totBlocks(c){const I=(l,v,info)=>`<div><div class="t">${l}</div><div class="tv">${v}${info?infoIcon(info):""}</div></div>`;
+  const mp=(c.merma*100).toFixed(1),ivap=(state.params.iva*100).toFixed(0),fcm=(state.params.foodCost*100).toFixed(0);
+  return I("Insumos",fmt(c.ins),`<b>Insumos</b><br>Suma del costo de la proteína (scoops × costo por scoop) y de cada ingrediente (cantidad × costo por unidad).`)
+   +I("+ Merma",fmt(c.conMerma),`<b>Con merma</b><br>Insumos × (1 + merma)<br>${fmt(c.ins)} × (1 + ${mp}%) = <b>${fmt(c.conMerma)}</b>`)
+   +I("+ Empaque",fmt(c.empaque),`<b>Empaque</b><br>Costo del combo de empaque marcado (vaso, tapa, popote, servilleta…).`)
+   +I("Costo total",fmt(c.total),`<b>Costo total</b><br>Insumos con merma + empaque + mano de obra<br>${fmt(c.conMerma)} + ${fmt(c.empaque)} + ${fmt(+state.params.mano||0)} = <b>${fmt(c.total)}</b>`)
+   +I("Food cost",`<span class="pill ${fcClass(c.fc)}">${pct(c.fc)}</span>`,`<b>Food cost</b><br>Costo total ÷ precio sin IVA<br>${fmt(c.total)} ÷ ${fmt(c.sinIva)} = <b>${pct(c.fc)}</b>`)
+   +I("Margen $",fmt(c.margen),`<b>Margen</b><br>Precio sin IVA − costo total<br>${fmt(c.sinIva)} − ${fmt(c.total)} = <b>${fmt(c.margen)}</b>`)
+   +I("Ref. "+pct(state.params.foodCost),`<span class="muted">${fmt(round5(c.sugerido))}</span>`,`<b>Precio de referencia</b><br>(Costo total ÷ meta de food cost) × (1 + IVA)<br>(${fmt(c.total)} ÷ ${fcm}%) × (1 + ${ivap}%) ≈ <b>${fmt(round5(c.sugerido))}</b><br>Solo referencia: tu precio de venta lo defines tú.`);}
 function renderProt(m){
   m.innerHTML=`<h2>Proteínas</h2><p class="hint">Catálogo con código, proveedor, fechas, precios (scoop y bote) e inventario doble (botes en bodega / scoops en kiosko). Usa <b>⇄</b> para traspasar un bote a venta por scoop.</p>
    <div class="scroll"><table><thead><tr>
@@ -480,32 +506,32 @@ function protRow(p,i){const cps=costPerScoop(p),util=(+p.precioScoop||0)-cps;
    <td><input class="n w-sm" data-f="pres" value="${esc(p.pres)}"></td>
    <td><input class="n w-sm" data-f="costo" value="${esc(p.costo)}"></td>
    <td><input class="n w-sm" data-f="scoops" value="${esc(p.scoops)}"></td>
-   <td class="num derived" data-d="cps">${fmt(cps)}</td>
+   <td class="num derived" data-d="cps">${cpsCell(p)}</td>
    <td><input class="n w-sm" data-f="precioScoop" value="${esc(p.precioScoop)}"></td>
-   <td class="num derived" data-d="util">${fmt(util)}</td>
+   <td class="num derived" data-d="util">${utilCell(p)}</td>
    <td><input class="n w-sm" data-f="precioBote" value="${esc(p.precioBote)}"></td>
    <td><input class="n w-sm" data-f="invOriginal" value="${esc(p.invOriginal)}"></td>
    <td><input class="n w-sm" data-f="minOriginal" value="${esc(p.minOriginal)}"></td>
    <td><input class="n w-sm" data-f="invScoops" value="${esc(p.invScoops)}"></td>
    <td><input class="n w-sm" data-f="minScoops" value="${esc(p.minScoops)}"></td>
    <td><div style="display:flex;gap:5px"><button class="btn tr" data-act="tr" title="Traspasar bote → scoops">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px" title="Eliminar">✕</button></div></td></tr>`;}
-function updProtRow(tr,p){tr.querySelector('[data-d="cps"]').textContent=fmt(costPerScoop(p));
-  tr.querySelector('[data-d="util"]').textContent=fmt((+p.precioScoop||0)-costPerScoop(p));}
+function updProtRow(tr,p){tr.querySelector('[data-d="cps"]').innerHTML=cpsCell(p);
+  tr.querySelector('[data-d="util"]').innerHTML=utilCell(p);}
 
 /* ---------------- INGREDIENTES ---------------- */
 function renderIngs(m,key,title){
-  m.innerHTML=`<h2>${title}</h2><p class="hint">El <b>costo por porción</b> y el <b>precio por porción</b> se calculan solos: a partir del costo de compra, las <b>porciones por presentación</b> y el <b>% de ganancia</b> que pongas. Los mínimos son alertas de reorden — <b>Mín pres.</b>: presentaciones mínimas en bodega; <b>Mín porc.</b>: porciones mínimas en kiosko. Usa <b>⇄</b> para traspasar a porciones.</p>
+  m.innerHTML=`<h2>${title}</h2><p class="hint">Todo lo de “salida” se calcula solo (toca la <b>ⓘ</b> para ver la fórmula). La <b>porción</b> es la medida que usas (ej. 100 g): el <b>costo por porción</b> = porción × costo por unidad (lo que cuestan esos 100 g). Las <b>porciones por presentación</b> salen solas. Los mínimos son alertas de reorden: <b>Mín pres.</b> en bodega, <b>Mín porc.</b> en kiosko.</p>
    <div class="scroll"><table><thead><tr>
    <th class="sticky">Ingrediente</th><th>Código</th><th>Marca</th><th>Proveedor</th><th>F. compra</th><th>F. cad</th><th>Pres. compra</th>
    <th>Unidad</th><th class="num">Contenido</th><th class="num">Costo compra</th><th class="num">Costo/u</th>
-   <th>Porción</th><th class="num">Porc./pres.</th><th class="num">Costo/porción</th><th class="num">% ganancia</th><th class="num">Precio/porción</th>
+   <th class="num">Porción</th><th class="num">Costo/porción</th><th class="num">Porc./pres.</th><th class="num">% ganancia</th><th class="num">Precio/porción</th>
    <th class="num">Inv pres.</th><th class="num">Mín pres.</th><th class="num">Inv porc.</th><th class="num">Mín porc.</th><th>Acción</th></tr></thead><tbody>
    ${state[key].map((it,i)=>ingRow(it,i)).join("")}</tbody></table></div>
    <div class="addbar"><button class="btn ghost" id="addI">+ Agregar ingrediente</button></div>`;
   state[key].forEach((it,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);bindRow(tr,key,i,updIngRow);
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
     tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+it.nombre+"?")){state[key].splice(i,1);save();render();}};});
-  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
+  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
 }
 function ingRow(it,i){return `<tr data-i="${i}">
    <td class="sticky"><input class="w-tx" data-f="nombre" value="${esc(it.nombre)}" style="font-weight:600"></td>
@@ -518,20 +544,21 @@ function ingRow(it,i){return `<tr data-i="${i}">
    <td><select data-f="unidad">${["g","ml","pz"].map(u=>`<option ${u===it.unidad?'selected':''}>${u}</option>`).join("")}</select></td>
    <td><input class="n w-sm" data-f="cont" value="${esc(it.cont)}"></td>
    <td><input class="n w-sm" data-f="costo" value="${esc(it.costo)}"></td>
-   <td class="num derived" data-d="cpu">${fmt(costPerUnit(it))}</td>
-   <td><input class="w-tx" data-f="porcionNombre" value="${esc(it.porcionNombre)}" placeholder="100 g / 1/4 taza"></td>
-   <td><input class="n w-sm" data-f="equivPorciones" value="${esc(it.equivPorciones)}"></td>
-   <td class="num derived" data-d="cpor">${fmt(costPortion(it))}</td>
+   <td class="num derived" data-d="cpu">${ingCpu(it)}</td>
+   <td><div style="display:flex;align-items:center;gap:4px;justify-content:flex-end"><input class="n" style="width:62px" data-f="porcionQty" value="${esc(it.porcionQty)}" placeholder="100"><span class="muted" style="font-size:11px">${it.unidad}</span></div></td>
+   <td class="num derived" data-d="cpor">${ingCpor(it)}</td>
+   <td class="num derived" data-d="ppres">${ingPpres(it)}</td>
    <td><input class="n w-sm" data-f="gananciaPct" value="${esc(it.gananciaPct)}" placeholder="%"></td>
-   <td class="num derived" data-d="ppor" style="font-weight:700;color:var(--green)">${fmt(pricePortion(it))}</td>
+   <td class="num derived" data-d="ppor" style="font-weight:700;color:var(--green)">${ingPpor(it)}</td>
    <td><input class="n w-sm" data-f="invOriginal" value="${esc(it.invOriginal)}"></td>
    <td><input class="n w-sm" data-f="minOriginal" value="${esc(it.minOriginal)}"></td>
    <td><input class="n w-sm" data-f="invPorcion" value="${esc(it.invPorcion)}"></td>
    <td><input class="n w-sm" data-f="minPorcion" value="${esc(it.minPorcion)}"></td>
    <td><div style="display:flex;gap:5px"><button class="btn tr" data-act="tr" title="Traspasar pres. → porciones">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}
-function updIngRow(tr,it){tr.querySelector('[data-d="cpu"]').textContent=fmt(costPerUnit(it));
-  tr.querySelector('[data-d="cpor"]').textContent=fmt(costPortion(it));
-  tr.querySelector('[data-d="ppor"]').textContent=fmt(pricePortion(it));}
+function updIngRow(tr,it){tr.querySelector('[data-d="cpu"]').innerHTML=ingCpu(it);
+  tr.querySelector('[data-d="cpor"]').innerHTML=ingCpor(it);
+  tr.querySelector('[data-d="ppres"]').innerHTML=ingPpres(it);
+  tr.querySelector('[data-d="ppor"]').innerHTML=ingPpor(it);}
 
 /* ---------------- EMPAQUE ---------------- */
 function renderEmp(m){
@@ -586,14 +613,7 @@ function recipeCard(r,ri,type,ingList,isShake){
      <label style="flex:0 0 auto"><div class="t muted" style="font-size:11px">Precio venta (público)</div><input class="n" data-f="precio" value="${esc(r.precio)}" style="width:120px"></label>
      <label style="flex:0 0 auto"><div class="t muted" style="font-size:11px">% merma (opcional)</div><input class="n" data-f="merma" value="${esc(r.merma)}" style="width:110px" placeholder="${state.params.merma*100}"></label>
      ${isShake?`<span class="tag2" title="Qué % del costo de insumos es proteína">Proteína: ${pct(calc.protShare)}</span>`:''}</div>
-   <div class="totals">
-     <div><div class="t">Insumos</div><div class="tv">${fmt(calc.ins)}</div></div>
-     <div><div class="t">+ Merma</div><div class="tv">${fmt(calc.conMerma)}</div></div>
-     <div><div class="t">+ Empaque</div><div class="tv">${fmt(calc.empaque)}</div></div>
-     <div><div class="t">Costo total</div><div class="tv">${fmt(calc.total)}</div></div>
-     <div><div class="t">Food cost</div><div class="tv"><span class="pill ${fcClass(calc.fc)}">${pct(calc.fc)}</span></div></div>
-     <div><div class="t">Margen $</div><div class="tv">${fmt(calc.margen)}</div></div>
-     <div><div class="t" title="Orientativo para tu meta de food cost. El precio lo defines tú.">Ref. ${pct(state.params.foodCost)}</div><div class="tv muted">${fmt(round5(calc.sugerido))}</div></div></div>
+   <div class="totals">${totBlocks(calc)}</div></div>
    <div class="legend" style="margin-top:8px">💡 El <b>precio de referencia</b> es solo orientativo para tu meta de food cost. Tu <b>precio de venta</b> manda: defínelo según tu mercado.</div>
    <div class="row-actions"><button class="btn mini ghost warn" data-act="del">Eliminar ${isShake?"shake":"alimento"}</button></div></div>`;
   const ingsBox=div.querySelector(".ings");
@@ -611,9 +631,8 @@ function recipeCard(r,ri,type,ingList,isShake){
   div.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar “"+r.nombre+"”?")){listRef.splice(ri,1);save();render();}};
   function updateLine(idx){const pair=r.ings[idx];const i=findIng(ingList,pair[0]);const lc=i&&pair[1]?costPerUnit(i)*(+pair[1]):0;
     div.querySelectorAll(".ing-row")[idx].querySelector(".c").textContent=lc?fmt(lc):"";}
-  function updateTotals(){const c=isShake?calcShake(r):calcFood(r);const tv=div.querySelectorAll(".totals .tv");
-    tv[0].textContent=fmt(c.ins);tv[1].textContent=fmt(c.conMerma);tv[2].textContent=fmt(c.empaque);tv[3].textContent=fmt(c.total);
-    tv[4].innerHTML=`<span class="pill ${fcClass(c.fc)}">${pct(c.fc)}</span>`;tv[5].textContent=fmt(c.margen);tv[6].textContent=fmt(round5(c.sugerido));
+  function updateTotals(){const c=isShake?calcShake(r):calcFood(r);
+    div.querySelector(".totals").innerHTML=totBlocks(c);
     const tg=div.querySelector(".tag2");if(tg)tg.textContent="Proteína: "+pct(c.protShare);}
   return div;
 }
@@ -625,7 +644,7 @@ function renderResale(m,key,title){
    <div class="scroll"><table><thead><tr><th class="sticky">Producto</th><th>Código</th><th>Proveedor</th><th>Últ. compra</th><th>Caducidad</th>
    <th class="num">Costo</th><th class="num">Precio</th><th class="num">Margen %</th><th>Pres. orig.</th><th class="num">Pzas/caja</th>
    <th class="num">Inv cajas</th><th class="num">Mín cajas</th><th class="num">Inv piezas</th><th class="num">Mín piezas</th><th>Acción</th></tr></thead><tbody>
-   ${state[key].map((p,i)=>{const sin=(+p.precio||0)/(1+state.params.iva);const mp=sin?(sin-(+p.costo||0))/sin:0;
+   ${state[key].map((p,i)=>{const sin=(+p.precio||0)/(1+state.params.iva);const mp=sin?(sin-(+p.costo||0))/sin:0;const mpInfo='<b>Margen %</b><br>(Precio sin IVA − costo) ÷ precio sin IVA<br>Precio sin IVA = '+fmt(sin)+' → <b>'+pct(mp)+'</b>';
      return `<tr data-i="${i}">
      <td class="sticky"><input class="w-tx" data-f="nombre" value="${esc(p.nombre)}" style="font-weight:600"></td>
      <td><input class="w-md" data-f="codigo" value="${esc(p.codigo)}"></td>
@@ -634,7 +653,7 @@ function renderResale(m,key,title){
      <td><input type="date" class="w-dt" data-f="caducidad" value="${esc(p.caducidad)}"></td>
      <td><input class="n w-sm" data-f="costo" value="${esc(p.costo)}"></td>
      <td><input class="n w-sm" data-f="precio" value="${esc(p.precio)}"></td>
-     <td class="num derived" data-d="mp">${pct(mp)}</td>
+     <td class="num derived" data-d="mp">${pct(mp)}${infoIcon(mpInfo)}</td>
      <td><input class="w-tx" data-f="presOriginal" value="${esc(p.presOriginal)}" placeholder="Caja 12"></td>
      <td><input class="n w-sm" data-f="equivPiezas" value="${esc(p.equivPiezas)}"></td>
      <td><input class="n w-sm" data-f="invOriginal" value="${esc(p.invOriginal)}"></td>
@@ -644,7 +663,7 @@ function renderResale(m,key,title){
      <td><div style="display:flex;gap:5px"><button class="btn tr" data-act="tr" title="Traspasar caja → piezas">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}).join("")}</tbody></table></div>
    <div class="addbar"><button class="btn ghost" id="addR">+ Agregar ${title.toLowerCase()}</button></div>`;
   state[key].forEach((p,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);
-    bindRow(tr,key,i,(tr2,o)=>{const sin=(+o.precio||0)/(1+state.params.iva);const mp=sin?(sin-(+o.costo||0))/sin:0;tr2.querySelector('[data-d="mp"]').textContent=pct(mp);});
+    bindRow(tr,key,i,(tr2,o)=>{const sin=(+o.precio||0)/(1+state.params.iva);const mp=sin?(sin-(+o.costo||0))/sin:0;tr2.querySelector('[data-d="mp"]').innerHTML=pct(mp)+infoIcon('<b>Margen %</b><br>(Precio sin IVA − costo) ÷ precio sin IVA<br>Precio sin IVA = '+fmt(sin)+' → <b>'+pct(mp)+'</b>');});
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
     tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+p.nombre+"?")){state[key].splice(i,1);save();render();}};});
   m.querySelector("#addR").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo producto",proveedor:"",ultimaCompra:"",caducidad:"",costo:"",precio:"",presOriginal:"",equivPiezas:"",invOriginal:"",minOriginal:"",invIndividual:"",minIndividual:""});save();render();};
