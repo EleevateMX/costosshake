@@ -114,6 +114,11 @@
   .info:hover{background:var(--accent)}
   .infobody{font-size:13px;line-height:1.7;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
   .infobody b{color:var(--green)}
+  .exist{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;background:var(--cream);border:1px solid var(--accent);border-radius:11px;padding:10px 12px;margin:8px 0 12px}
+  .exist .ivt{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .exist .ivv{font-family:var(--display);font-size:18px;font-weight:700;color:var(--green)}
+  .po-row{display:flex;gap:6px;align-items:center;margin:7px 0;flex-wrap:wrap}
+  .po-row .rinde{font-size:11px;color:var(--muted);min-width:58px}
   /* inventario */
   .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
@@ -249,7 +254,7 @@ function defaultState(){
     P("Optimum Nutrition Whey","Chocolate"),P("Optimum Nutrition Whey","Vanilla"),P("Mutant Whey","Chocolate"),
     P("Mutant Whey","Vanilla"),P("Mutant Whey","Triple Chocolate"),
   ];
-  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
+  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",stockBase:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
   const shakeIngs=[
     ing("Leche deslactosada",{unidad:"ml",cont:1000,costo:32,presCompra:"Litro"}),ing("Leche de almendras"),ing("Leche de avena"),ing("Leche de coco"),
     ing("Yogurt griego"),ing("Plátano",{unidad:"g",cont:1000,costo:25}),ing("Piña congelada"),
@@ -263,11 +268,11 @@ function defaultState(){
     ing("Vainilla"),ing("Café"),ing("Syrup de chocolate",{unidad:"ml",cont:750,costo:140}),ing("Syrup de caramelo"),
     ing("Syrup de fresa"),ing("Hojas de menta"),
   ];
-  const foodIngs=["Pan de masa madre multigrano","Tortilla de wrap","Crutones","Pollo a la plancha","Jamón pechuga de pavo",
+  const foodIngs=["Pan de masa madre multigrano","Tortilla de wrap","Crutones","Pollo","Jamón pechuga de pavo",
     "Roast Beef","Atún","Mozzarella","Panela","Cheddar","Manchego","Parmesano","Arúgula","Espinaca baby","Lechuga",
     "Lechuga romana","Tomate seco","Pepino","Zanahoria","Tomate cherry","Cebolla morada","Pepinillos","Elote",
     "Cebollitas crispy","Garbanzo","Pesto","Ranch light","Mostaza miel","Chipotle","Soya y limón","César","Guacamole","Sal de mar"].map(n=>ing(n));
-  (()=>{const po=foodIngs.find(x=>x.nombre==="Pollo a la plancha");if(po){po.unidad="g";po.cont=1000;po.costo=140;po.presCompra="Paquete 1 kg";po.porciones=[{nombre:"Ensalada",cant:80},{nombre:"Sándwich",cant:100}];}})();
+  (()=>{const po=foodIngs.find(x=>x.nombre==="Pollo");if(po){po.unidad="g";po.cont=1000;po.costo=140;po.presCompra="Paquete 1 kg";po.stockBase=5000;po.porciones=[{nombre:"Ensalada",cant:80},{nombre:"Sándwich",cant:100}];}})();
   const emp=(nombre,costo,shake,food,ex={})=>Object.assign({codigo:"",nombre,proveedor:"",costo,shake,food,ultimaCompra:"",stock:"",stockMin:""},ex);
   const empaque=[emp("Vaso 16 oz",3.5,true,false),emp("Tapa domo",1.8,true,false),emp("Popote",0.5,true,false),
     emp("Servilleta",0.2,true,true),emp("Bolsa kraft",1.2,false,true),emp("Contenedor sándwich/wrap",4.5,false,true),emp("Papel encerado",0.6,false,true)];
@@ -296,7 +301,7 @@ function migrate(s){
   s.params=Object.assign({foodCost:0.30,iva:0.16,merma:0.08,mano:0,clave:"1234"},s.params);
   fill(s.proteins,{codigo:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",precioScoop:"",precioBote:"",invOriginal:"",minOriginal:"",invScoops:"",minScoops:""});
   (s.proteins||[]).forEach(p=>{if((p.invOriginal===""||p.invOriginal==null)&&p.stock)p.invOriginal=p.stock;});
-  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
+  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",stockBase:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
   fill(s.shakeIngs,idf);fill(s.foodIngs,idf);
   [...(s.shakeIngs||[]),...(s.foodIngs||[])].forEach(it=>{if((it.invOriginal===""||it.invOriginal==null)&&it.stock)it.invOriginal=it.stock;});
   [...(s.shakeIngs||[]),...(s.foodIngs||[])].forEach(it=>{if(!Array.isArray(it.porciones))it.porciones=[];});
@@ -541,24 +546,45 @@ function openPorciones(key,i){
   if(!Array.isArray(it.porciones))it.porciones=[];
   const host=document.getElementById("modalHost");
   function draw(){
+    const u=it.unidad||"u", stock=+it.stockBase||0;
     host.innerHTML=`<div class="modal-bg"><div class="modal">
-      <h3>Porciones de ${esc(it.nombre)}</h3>
-      <div class="sub">Mismo ingrediente, varias porciones según el platillo (ej. Ensalada 80 ${it.unidad}, Sándwich 100 ${it.unidad}). En las recetas eliges la porción y el costo sale solo.</div>
+      <h3>${esc(it.nombre)} · porciones y existencia</h3>
+      <div class="sub">Un solo ingrediente con varias porciones (ej. Ensalada 80 ${u}, Sándwich 100 ${u}). Al <b>Descontar</b> una porción, baja del total de ${esc(it.nombre)}: cada porción por separado, pero del mismo stock.</div>
+      <div class="exist">
+        <div><div class="ivt">Existencia de ${esc(it.nombre)}</div><div class="ivv">${num(stock)} ${u}</div></div>
+        <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
+          <label><div class="t muted" style="font-size:10px">Cantidad (${u})</div><input class="n" id="po_in" style="width:96px" placeholder="ej. 1000"></label>
+          <button class="btn mini" id="po_inbtn" title="Sumar a la existencia (entrada de compra)">+ Entrada</button>
+          <button class="btn mini ghost" id="po_setbtn" title="Fijar la existencia exacta">Fijar</button>
+        </div>
+      </div>
       <div id="po_list"></div>
       <div class="mrow" style="justify-content:flex-start;margin-top:4px"><button class="btn ghost mini" id="po_add">+ Agregar porción</button></div>
+      <div class="merr" id="po_err"></div>
       <div class="mrow"><button class="btn mini" id="po_close">Listo</button></div>
     </div></div>`;
-    const list=host.querySelector("#po_list");
-    list.innerHTML = it.porciones.length ? it.porciones.map((po,j)=>`
-      <div style="display:flex;gap:6px;align-items:center;margin:6px 0">
-        <input class="w-tx" data-pn="${j}" value="${esc(po.nombre)}" placeholder="Ensalada" style="flex:1">
-        <input class="n" data-pc="${j}" value="${esc(po.cant)}" placeholder="0" style="width:80px">
-        <span class="muted" style="font-size:11px">${esc(it.unidad)}</span>
+    const list=host.querySelector("#po_list"), err=host.querySelector("#po_err");
+    list.innerHTML = it.porciones.length ? it.porciones.map((po,j)=>{const c=+po.cant||0, rinde=c?Math.floor(stock/c):0; return `
+      <div class="po-row">
+        <input class="w-tx" data-pn="${j}" value="${esc(po.nombre)}" placeholder="Ensalada" style="flex:1;min-width:108px">
+        <input class="n" data-pc="${j}" value="${esc(po.cant)}" placeholder="0" style="width:66px"><span class="muted" style="font-size:11px">${u}</span>
+        <span class="rinde">rinde ${rinde}</span>
+        <input class="n" data-use="${j}" style="width:50px" placeholder="#">
+        <button class="btn mini" data-dis="${j}" title="Descontar de la existencia">Descontar</button>
         <button class="xbtn" data-pd="${j}" style="padding:6px 9px">✕</button>
-      </div>`).join("") : `<div class="muted" style="font-size:12px;margin:8px 0">Aún no hay porciones. Agrega una (ej. “Ensalada” 80 ${it.unidad}).</div>`;
+      </div>`;}).join("") : `<div class="muted" style="font-size:12px;margin:8px 0">Aún no hay porciones. Agrega una (ej. “Ensalada” 80 ${u}).</div>`;
     list.querySelectorAll("[data-pn]").forEach(inp=>inp.addEventListener("input",e=>{it.porciones[+e.target.dataset.pn].nombre=e.target.value;save();}));
     list.querySelectorAll("[data-pc]").forEach(inp=>inp.addEventListener("input",e=>{it.porciones[+e.target.dataset.pc].cant=e.target.value;save();}));
     list.querySelectorAll("[data-pd]").forEach(b=>b.onclick=()=>{it.porciones.splice(+b.dataset.pd,1);save();draw();});
+    list.querySelectorAll("[data-dis]").forEach(b=>b.onclick=()=>{const j=+b.dataset.dis,po=it.porciones[j],c=+po.cant||0,n=+host.querySelector(`[data-use="${j}"]`).value||0;
+      err.style.display="none";
+      if(c<=0){err.textContent="Define los "+u+" de esa porción primero.";err.style.display="block";return;}
+      if(n<=0){err.textContent="¿Cuántas "+(po.nombre||"porciones")+" preparaste?";err.style.display="block";return;}
+      const need=c*n, cur=+it.stockBase||0;
+      if(need>cur){err.textContent="No alcanza: necesitas "+num(need)+" "+u+" y solo hay "+num(cur)+" "+u+".";err.style.display="block";return;}
+      it.stockBase=cur-need;save();draw();});
+    host.querySelector("#po_inbtn").onclick=()=>{const v=+host.querySelector("#po_in").value||0;if(v){it.stockBase=(+it.stockBase||0)+v;save();draw();}};
+    host.querySelector("#po_setbtn").onclick=()=>{const el=host.querySelector("#po_in");if(el.value!==""){it.stockBase=+el.value||0;save();draw();}};
     host.querySelector("#po_add").onclick=()=>{it.porciones.push({nombre:"",cant:""});save();draw();};
     host.querySelector("#po_close").onclick=()=>{host.innerHTML="";render();};
     host.querySelector(".modal-bg").onclick=ev=>{if(ev.target.classList.contains("modal-bg")){host.innerHTML="";render();}};
@@ -580,7 +606,7 @@ function renderIngs(m,key,title){
     tr.querySelector('[data-act="porc"]').onclick=()=>openPorciones(key,i);
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
     tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+it.nombre+"?")){state[key].splice(i,1);save();render();}};});
-  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
+  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",porcionQty:"",stockBase:"",porciones:[],equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
 }
 function ingRow(it,i){return `<tr data-i="${i}">
    <td class="sticky"><input class="w-tx" data-f="nombre" value="${esc(it.nombre)}" style="font-weight:600"></td>
