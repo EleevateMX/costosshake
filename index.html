@@ -150,7 +150,7 @@
       <div class="auth-switch">¿Ya tienes cuenta? <a id="toLogin">Iniciar sesión</a></div>
     </div>
     <div class="auth-msg" id="auth_msg"></div>
-    <div class="auth-note">Acceso interno. Los usuarios se guardan en este navegador.<br>Usuario inicial: <b>admin</b> / <b>shakeaholic</b> (cámbialo).</div>
+    <div class="auth-note">Acceso interno. Tus datos se sincronizan en la nube (Supabase).<br>Usuario inicial: <b>admin</b> / <b>shakeaholic</b> — cámbialo.</div>
   </div>
 </div>
 
@@ -173,8 +173,13 @@
 </div>
 <div id="modalHost"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const SKEY="shakeaholic_state_v2", UKEY="shakeaholic_users_v1", SESS="shakeaholic_session_v1";
+const SB_URL="https://zyjtnaystsporbuzcmqk.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5anRuYXlzdHNwb3JidXpjbXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNzMxNDksImV4cCI6MjA5Njg0OTE0OX0.USpCrgpCLMXcpWhA60mKmgMchrxCR3_kybIPIyas7iA";
+const DOC_ID="shakeaholic", SESS="shakeaholic_session_v1", CACHE="shakeaholic_cache_v2";
+const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
+let currentUser=null;
 const fmt=(n)=> (n||n===0)? "$"+Number(n).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}):"–";
 const num=(n)=> (n||n===0)? Number(n).toLocaleString("es-MX"):"0";
 const pct=(n)=> (n||n===0)? (n*100).toFixed(1)+"%":"–";
@@ -187,17 +192,26 @@ function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}c
 async function sha256(t){t="shakeaholic::"+t;
   try{const h=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,"0")).join("");}
   catch(e){let h=0;for(let i=0;i<t.length;i++){h=(h<<5)-h+t.charCodeAt(i);h|=0;}return "f"+(h>>>0).toString(16);}}
-function getUsers(){return lsGet(UKEY)||[];}
-async function seedUsers(){let u=getUsers();if(!u.length){u=[{user:"admin",hash:await sha256("shakeaholic")}];lsSet(UKEY,u);}}
+async function dbUsers(){if(!sb)return [];const r=await sb.from('app_users').select('username,hash');return r.error?[]:(r.data||[]);}
+async function seedUsers(){if(!sb)return;const u=await dbUsers();if(!u.length){await sb.from('app_users').insert({username:"admin",hash:await sha256("shakeaholic")});}}
 function authMsg(t,cls){const m=document.getElementById("auth_msg");m.textContent=t;m.className="auth-msg "+cls;}
 async function doLogin(){const user=document.getElementById("li_user").value.trim(),pass=document.getElementById("li_pass").value;
   if(!user||!pass){authMsg("Escribe usuario y contraseña.","err");return;}
-  const u=getUsers().find(x=>x.user.toLowerCase()===user.toLowerCase());
-  if(u&&u.hash===await sha256(pass)){lsSet(SESS,{user:u.user});showApp(u.user);}else authMsg("Usuario o contraseña incorrectos.","err");}
+  if(!sb){authMsg("No hay conexión con la base de datos.","err");return;}
+  authMsg("Verificando…","ok");
+  const r=await sb.from('app_users').select('username,hash').ilike('username',user).limit(1);
+  if(r.error){authMsg("Error de conexión. Revisa tu internet.","err");return;}
+  const u=r.data&&r.data[0];
+  if(u&&u.hash===await sha256(pass)){lsSet(SESS,{user:u.username});showApp(u.username);}
+  else authMsg("Usuario o contraseña incorrectos.","err");}
 async function doRegister(){const user=document.getElementById("rg_user").value.trim(),p1=document.getElementById("rg_pass").value,p2=document.getElementById("rg_pass2").value;
   if(!user||!p1){authMsg("Completa los campos.","err");return;} if(p1!==p2){authMsg("Las contraseñas no coinciden.","err");return;}
-  let u=getUsers(); if(u.find(x=>x.user.toLowerCase()===user.toLowerCase())){authMsg("Ese usuario ya existe.","err");return;}
-  u.push({user,hash:await sha256(p1)});lsSet(UKEY,u);authMsg("Usuario creado. Ya puedes iniciar sesión.","ok");
+  if(!sb){authMsg("No hay conexión con la base de datos.","err");return;}
+  const ex=await sb.from('app_users').select('username').ilike('username',user).limit(1);
+  if(ex.data&&ex.data.length){authMsg("Ese usuario ya existe.","err");return;}
+  const ins=await sb.from('app_users').insert({username:user,hash:await sha256(p1)});
+  if(ins.error){authMsg("No se pudo crear el usuario.","err");return;}
+  authMsg("Usuario creado. Ya puedes iniciar sesión.","ok");
   document.getElementById("regForm").style.display="none";document.getElementById("loginForm").style.display="block";document.getElementById("li_user").value=user;}
 function wireAuth(){
   document.getElementById("li_btn").onclick=doLogin;document.getElementById("rg_btn").onclick=doRegister;
@@ -222,11 +236,11 @@ function defaultState(){
     P("Optimum Nutrition Whey","Chocolate"),P("Optimum Nutrition Whey","Vanilla"),P("Mutant Whey","Chocolate"),
     P("Mutant Whey","Vanilla"),P("Mutant Whey","Triple Chocolate"),
   ];
-  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
+  const ing=(nombre,ex={})=>Object.assign({codigo:"",nombre,marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""},ex);
   const shakeIngs=[
     ing("Leche deslactosada",{unidad:"ml",cont:1000,costo:32,presCompra:"Litro"}),ing("Leche de almendras"),ing("Leche de avena"),ing("Leche de coco"),
     ing("Yogurt griego"),ing("Plátano",{unidad:"g",cont:1000,costo:25}),ing("Piña congelada"),
-    ing("Mango congelado",{presCompra:"Bolsa 1 kg",equivPorciones:20,invOriginal:2,minOriginal:1,porcionNombre:"100 g",precioPorcion:25}),
+    ing("Mango congelado",{unidad:"g",cont:1000,costo:90,presCompra:"Bolsa 1 kg",equivPorciones:20,invOriginal:2,minOriginal:1,porcionNombre:"100 g",gananciaPct:150}),
     ing("Fresas congeladas"),ing("Arándanos congelados",{presCompra:"Caja",equivPorciones:8,invOriginal:3,minOriginal:1,porcionNombre:"1/2 taza"}),
     ing("Fresas frescas"),ing("Arándanos frescos"),ing("Acai"),ing("Limón"),ing("Espinaca congelada"),
     ing("Crema de cacahuate",{unidad:"g",cont:1000,costo:180}),ing("Crema de pistachio"),ing("Crema de coco"),
@@ -268,7 +282,7 @@ function migrate(s){
   s.params=Object.assign({foodCost:0.30,iva:0.16,merma:0.08,mano:0,clave:"1234"},s.params);
   fill(s.proteins,{codigo:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",precioScoop:"",precioBote:"",invOriginal:"",minOriginal:"",invScoops:"",minScoops:""});
   (s.proteins||[]).forEach(p=>{if((p.invOriginal===""||p.invOriginal==null)&&p.stock)p.invOriginal=p.stock;});
-  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
+  const idf={codigo:"",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""};
   fill(s.shakeIngs,idf);fill(s.foodIngs,idf);
   [...(s.shakeIngs||[]),...(s.foodIngs||[])].forEach(it=>{if((it.invOriginal===""||it.invOriginal==null)&&it.stock)it.invOriginal=it.stock;});
   fill(s.empaque,{codigo:"",proveedor:"",ultimaCompra:"",stock:"",stockMin:""});
@@ -278,15 +292,34 @@ function migrate(s){
   (s.foodRecipes||[]).forEach((r,i)=>{if(r.codigo===undefined)r.codigo="Alimento "+(i+1);});
   return s;
 }
-function load(){let s=lsGet(SKEY);state=(s&&s.params)?migrate(s):defaultState();persist();}
-function persist(){const ok=lsSet(SKEY,state);setSaved(ok?"Guardado ✓":"⚠ No se pudo guardar");}
-function save(){clearTimeout(saveTimer);saveTimer=setTimeout(persist,400);}
+let lastLocalSave=0, realtimeReady=false;
+async function load(){
+  if(!sb){let c=lsGet(CACHE);state=(c&&c.params)?migrate(c):defaultState();return;}
+  try{
+    const r=await sb.from('app_data').select('data').eq('id',DOC_ID).maybeSingle();
+    if(r.error)throw r.error;
+    const d=r.data&&r.data.data;
+    if(d&&d.params){state=migrate(d);}else{state=defaultState();await dbWrite();}
+    lsSet(CACHE,state);
+  }catch(e){let c=lsGet(CACHE);state=(c&&c.params)?migrate(c):defaultState();setSaved("⚠ Sin conexión (local)");}
+}
+async function dbWrite(){
+  lsSet(CACHE,state);
+  if(!sb){setSaved("⚠ Guardado local");return;}
+  lastLocalSave=Date.now();
+  const r=await sb.from('app_data').update({data:state,updated_at:new Date().toISOString(),updated_by:currentUser}).eq('id',DOC_ID);
+  setSaved(r.error?"⚠ Error al guardar":"Guardado ✓");
+}
+function persist(){dbWrite();}
+function save(){clearTimeout(saveTimer);saveTimer=setTimeout(dbWrite,500);}
 function setSaved(t){const e=document.getElementById("saved");if(e)e.textContent=t;}
 
 /* ---------------- CÁLCULOS COSTEO ---------------- */
 function protKey(p){return p.marca+" - "+p.sabor;}
 function costPerScoop(p){const c=+p.costo,s=+p.scoops;return c&&s?c/s:0;}
 function costPerUnit(i){const c=+i.cont,p=+i.costo;return c&&p?p/c:0;}
+function costPortion(it){const c=+it.costo,e=+it.equivPorciones;return c&&e?c/e:0;}
+function pricePortion(it){const g=+it.gananciaPct||0;return costPortion(it)*(1+g/100);}
 function findProt(key){return state.proteins.find(p=>protKey(p)===key);}
 function findIng(list,name){return list.find(i=>i.nombre===name);}
 function comboShake(){return state.empaque.filter(e=>e.shake).reduce((a,e)=>a+(+e.costo||0),0);}
@@ -461,18 +494,18 @@ function updProtRow(tr,p){tr.querySelector('[data-d="cps"]').textContent=fmt(cos
 
 /* ---------------- INGREDIENTES ---------------- */
 function renderIngs(m,key,title){
-  m.innerHTML=`<h2>${title}</h2><p class="hint">Código, marca, proveedor, fechas, presentación de compra, costo, porción de venta y precio, e inventario doble (presentación en bodega / porciones en kiosko). Usa <b>⇄</b> para traspasar a porciones.</p>
+  m.innerHTML=`<h2>${title}</h2><p class="hint">El <b>costo por porción</b> y el <b>precio por porción</b> se calculan solos: a partir del costo de compra, las <b>porciones por presentación</b> y el <b>% de ganancia</b> que pongas. Los mínimos son alertas de reorden — <b>Mín pres.</b>: presentaciones mínimas en bodega; <b>Mín porc.</b>: porciones mínimas en kiosko. Usa <b>⇄</b> para traspasar a porciones.</p>
    <div class="scroll"><table><thead><tr>
    <th class="sticky">Ingrediente</th><th>Código</th><th>Marca</th><th>Proveedor</th><th>F. compra</th><th>F. cad</th><th>Pres. compra</th>
    <th>Unidad</th><th class="num">Contenido</th><th class="num">Costo compra</th><th class="num">Costo/u</th>
-   <th>Porción</th><th class="num">Precio/porción</th><th class="num">Porc./pres.</th>
+   <th>Porción</th><th class="num">Porc./pres.</th><th class="num">Costo/porción</th><th class="num">% ganancia</th><th class="num">Precio/porción</th>
    <th class="num">Inv pres.</th><th class="num">Mín pres.</th><th class="num">Inv porc.</th><th class="num">Mín porc.</th><th>Acción</th></tr></thead><tbody>
    ${state[key].map((it,i)=>ingRow(it,i)).join("")}</tbody></table></div>
    <div class="addbar"><button class="btn ghost" id="addI">+ Agregar ingrediente</button></div>`;
   state[key].forEach((it,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);bindRow(tr,key,i,updIngRow);
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
     tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+it.nombre+"?")){state[key].splice(i,1);save();render();}};});
-  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
+  m.querySelector("#addI").onclick=()=>{state[key].push({codigo:"",nombre:"Nuevo ingrediente",marca:"",proveedor:"",fechaCompra:"",fechaCaducidad:"",presCompra:"",unidad:"g",cont:"",costo:"",porcionNombre:"",precioPorcion:"",gananciaPct:"",equivPorciones:"",invOriginal:"",minOriginal:"",invPorcion:"",minPorcion:""});save();render();};
 }
 function ingRow(it,i){return `<tr data-i="${i}">
    <td class="sticky"><input class="w-tx" data-f="nombre" value="${esc(it.nombre)}" style="font-weight:600"></td>
@@ -487,14 +520,18 @@ function ingRow(it,i){return `<tr data-i="${i}">
    <td><input class="n w-sm" data-f="costo" value="${esc(it.costo)}"></td>
    <td class="num derived" data-d="cpu">${fmt(costPerUnit(it))}</td>
    <td><input class="w-tx" data-f="porcionNombre" value="${esc(it.porcionNombre)}" placeholder="100 g / 1/4 taza"></td>
-   <td><input class="n w-sm" data-f="precioPorcion" value="${esc(it.precioPorcion)}"></td>
    <td><input class="n w-sm" data-f="equivPorciones" value="${esc(it.equivPorciones)}"></td>
+   <td class="num derived" data-d="cpor">${fmt(costPortion(it))}</td>
+   <td><input class="n w-sm" data-f="gananciaPct" value="${esc(it.gananciaPct)}" placeholder="%"></td>
+   <td class="num derived" data-d="ppor" style="font-weight:700;color:var(--green)">${fmt(pricePortion(it))}</td>
    <td><input class="n w-sm" data-f="invOriginal" value="${esc(it.invOriginal)}"></td>
    <td><input class="n w-sm" data-f="minOriginal" value="${esc(it.minOriginal)}"></td>
    <td><input class="n w-sm" data-f="invPorcion" value="${esc(it.invPorcion)}"></td>
    <td><input class="n w-sm" data-f="minPorcion" value="${esc(it.minPorcion)}"></td>
    <td><div style="display:flex;gap:5px"><button class="btn tr" data-act="tr" title="Traspasar pres. → porciones">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}
-function updIngRow(tr,it){tr.querySelector('[data-d="cpu"]').textContent=fmt(costPerUnit(it));}
+function updIngRow(tr,it){tr.querySelector('[data-d="cpu"]').textContent=fmt(costPerUnit(it));
+  tr.querySelector('[data-d="cpor"]').textContent=fmt(costPortion(it));
+  tr.querySelector('[data-d="ppor"]').textContent=fmt(pricePortion(it));}
 
 /* ---------------- EMPAQUE ---------------- */
 function renderEmp(m){
@@ -733,12 +770,32 @@ function wireToolbar(){
   document.getElementById("logout").onclick=logout;}
 
 /* ---------------- ARRANQUE ---------------- */
-function showApp(user){
+async function showApp(user){
+  currentUser=user;
   document.getElementById("auth").style.display="none";document.getElementById("app").style.display="block";
   document.getElementById("userchip").textContent="👤 "+user;
-  load();renderNav();wireToolbar();render();}
-(async function(){await seedUsers();wireAuth();
-  const sess=lsGet(SESS);if(sess&&sess.user&&getUsers().find(u=>u.user===sess.user))showApp(sess.user);})();
+  setSaved("Conectando…");
+  await load();
+  renderNav();wireToolbar();render();
+  setSaved(sb?"Sincronizado ✓":"Local (sin nube)");
+  subscribeRealtime();
+}
+function subscribeRealtime(){
+  if(!sb||realtimeReady)return; realtimeReady=true;
+  sb.channel('app_data_rt').on('postgres_changes',{event:'UPDATE',schema:'public',table:'app_data'},payload=>{
+    const nd=payload.new&&payload.new.data;
+    if(!nd||!nd.params)return;
+    if(payload.new.updated_by===currentUser && (Date.now()-lastLocalSave<4000))return;
+    const ae=document.activeElement;
+    if(ae&&(ae.tagName==="INPUT"||ae.tagName==="SELECT"||ae.tagName==="TEXTAREA"))return;
+    state=migrate(nd);lsSet(CACHE,state);render();setSaved("Actualizado desde otro dispositivo ✓");
+  }).subscribe();
+}
+(async function(){
+  await seedUsers();wireAuth();
+  const sess=lsGet(SESS);
+  if(sess&&sess.user)showApp(sess.user);
+})();
 </script>
 </body>
 </html>
