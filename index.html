@@ -398,10 +398,10 @@ function renderDash(m){
      <div class="card"><div class="k">Caducidad próxima</div><div class="v" style="color:${cadCount?'var(--warn)':'var(--ok)'}">${cadCount}</div></div>
    </div>
    <h2 style="font-size:16px">Productos costeados</h2>
-   <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Item</th><th>Producto</th><th class="num">Costo</th><th class="num">Precio</th><th class="num">Food cost</th><th class="num">Margen $</th><th class="num">Margen %</th><th class="num">Sugerido</th></tr></thead><tbody>
+   <div class="scroll" style="margin-top:8px"><table><thead><tr><th>Item</th><th>Producto</th><th class="num">Costo</th><th class="num">Precio</th><th class="num">Food cost</th><th class="num">Margen $</th><th class="num">Margen %</th><th class="num">Precio ref.</th></tr></thead><tbody>
    ${all.length? all.sort((a,b)=>b.c.fc-a.c.fc).map(x=>`<tr><td class="muted">${esc(x.r.codigo||'')}</td><td>${esc(x.r.nombre)}</td><td class="num">${fmt(x.c.total)}</td><td class="num">${fmt(x.c.precio)}</td><td class="num"><span class="pill ${fcClass(x.c.fc)}">${pct(x.c.fc)}</span></td><td class="num">${fmt(x.c.margen)}</td><td class="num">${pct(x.c.margenPct)}</td><td class="num muted">${fmt(round5(x.c.sugerido))}</td></tr>`).join("")
      : `<tr><td colspan="8" class="muted">Aún no hay productos con precio.</td></tr>`}</tbody></table></div>
-   <p class="legend">🟢 ≤ meta · 🟡 entre meta y 40% · 🔴 &gt; 40% de food cost.</p>`;
+   <p class="legend">🟢 ≤ meta · 🟡 entre meta y 40% · 🔴 &gt; 40% de food cost. El <b>precio ref.</b> es orientativo; el precio de venta lo defines tú según tu mercado.</p>`;
 }
 
 /* ---------------- PARÁMETROS ---------------- */
@@ -524,7 +524,7 @@ function renderEmp(m){
 function renderRecipes(m,type){
   const isShake=type==="shake",list=isShake?state.shakeRecipes:state.foodRecipes,ingList=isShake?state.shakeIngs:state.foodIngs;
   m.innerHTML=`<h2>Costeo ${isShake?"Shakes":"Alimentos"}</h2>
-   <p class="hint">Cada uno tiene su <b>número de item</b>. Puedes editar el nombre, agregar o quitar ingredientes con los botones. “% merma” vacío usa el default (${pct(state.params.merma)}).</p>
+   <p class="hint">Cada uno tiene su <b>número de item</b>. Puedes editar el nombre, agregar o quitar ingredientes con los botones. “% merma” vacío usa el default (${pct(state.params.merma)}). El <b>precio de referencia</b> es solo orientativo; tu precio de venta manda.</p>
    <div id="reclist"></div><button class="btn ghost" id="addrec">+ Agregar ${isShake?"shake":"alimento"}</button>`;
   const cont=m.querySelector("#reclist");
   list.forEach((r,ri)=>cont.appendChild(recipeCard(r,ri,type,ingList,isShake)));
@@ -556,7 +556,8 @@ function recipeCard(r,ri,type,ingList,isShake){
      <div><div class="t">Costo total</div><div class="tv">${fmt(calc.total)}</div></div>
      <div><div class="t">Food cost</div><div class="tv"><span class="pill ${fcClass(calc.fc)}">${pct(calc.fc)}</span></div></div>
      <div><div class="t">Margen $</div><div class="tv">${fmt(calc.margen)}</div></div>
-     <div><div class="t">Sugerido</div><div class="tv muted">${fmt(round5(calc.sugerido))}</div></div></div>
+     <div><div class="t" title="Orientativo para tu meta de food cost. El precio lo defines tú.">Ref. ${pct(state.params.foodCost)}</div><div class="tv muted">${fmt(round5(calc.sugerido))}</div></div></div>
+   <div class="legend" style="margin-top:8px">💡 El <b>precio de referencia</b> es solo orientativo para tu meta de food cost. Tu <b>precio de venta</b> manda: defínelo según tu mercado.</div>
    <div class="row-actions"><button class="btn mini ghost warn" data-act="del">Eliminar ${isShake?"shake":"alimento"}</button></div></div>`;
   const ingsBox=div.querySelector(".ings");
   r.ings.forEach((pair,idx)=>{const row=document.createElement("div");row.className="ing-row";
@@ -710,7 +711,7 @@ function download(name,content,mime){const blob=new Blob([content],{type:mime});
   const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function backup(){download(`shakeaholic_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(state,null,2),"application/json");}
 function exportCsv(){
-  const rows=[["Tipo","Item","Producto","Costo total","Precio","Sin IVA","Food cost %","Margen $","Margen %","Sugerido"]];
+  const rows=[["Tipo","Item","Producto","Costo total","Precio","Sin IVA","Food cost %","Margen $","Margen %","Precio ref."]];
   const push=(t,r,c)=>rows.push([t,r.codigo||"",r.nombre,c.total.toFixed(2),(c.precio||0).toFixed(2),c.sinIva.toFixed(2),(c.fc*100).toFixed(1),c.margen.toFixed(2),(c.margenPct*100).toFixed(1),round5(c.sugerido)]);
   state.shakeRecipes.forEach(r=>{const c=calcShake(r);if(c.precio>0)push("Shake",r,c);});
   state.foodRecipes.forEach(r=>{const c=calcFood(r);if(c.precio>0)push("Alimento",r,c);});
