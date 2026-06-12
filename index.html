@@ -85,8 +85,16 @@
   .recipe-head .code{font-family:var(--display);font-weight:700;font-size:12px;background:var(--cream);color:var(--green);border:0;border-radius:8px;padding:6px 8px;width:110px;text-align:center}
   .recipe-head .name{font-family:var(--display);font-weight:600;font-size:16px;flex:1;min-width:150px;border:0;border-bottom:1px dashed var(--line);border-radius:0;background:transparent;color:var(--green)}
   .recipe-head .name:focus{outline:0;border-bottom-color:var(--accent)}
-  .ing-row{display:grid;grid-template-columns:1fr 92px 70px 30px;gap:8px;margin-bottom:7px;align-items:center}
-  .ing-row .c{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+  .ing-row{display:grid;grid-template-columns:1fr 78px 28px 80px 30px;gap:8px;margin-bottom:8px;align-items:center;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:7px 9px}
+  .ing-row .c{font-size:13px;font-weight:700;color:var(--green);text-align:right;font-variant-numeric:tabular-nums}
+  .ing-row .ing-u{font-size:11px;text-align:center}
+  .ing-empty{font-size:12.5px;color:var(--muted);padding:12px;text-align:center;border:1px dashed var(--line);border-radius:10px;background:var(--paper)}
+  .ivachk{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);background:var(--cream);border:1px solid var(--accent);border-radius:10px;padding:9px 12px;cursor:pointer;font-weight:600;user-select:none}
+  .ivachk input{width:16px;height:16px;accent-color:var(--green);cursor:pointer}
+  .ivapanel{display:flex;gap:10px;flex-wrap:wrap;margin-top:11px}
+  .ivapanel .ivc{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+  .ivapanel .ivt{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .ivapanel .ivv{font-family:var(--display);font-size:15px;font-weight:600;color:var(--green);margin-top:2px;font-variant-numeric:tabular-nums}
   .xbtn{background:var(--bad-bg);color:var(--bad);border:0;border-radius:7px;cursor:pointer;font-weight:700;padding:6px 0}
   .totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px;margin-top:14px;padding:13px;border-radius:12px;background:var(--paper)}
   .totals .t{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
@@ -131,7 +139,7 @@
   .modal .preview b{color:var(--green)}
   .modal .merr{color:var(--bad);font-size:12.5px;margin-bottom:10px;display:none}
   .modal .mrow{display:flex;gap:8px;justify-content:flex-end}
-  @media(max-width:640px){ header .brand{font-size:18px} header img.logo{width:38px;height:38px} main{padding:18px 12px 60px} .toolbar{padding:9px 14px} nav{top:70px} .ing-row{grid-template-columns:1fr 78px 60px 28px} }
+  @media(max-width:640px){ header .brand{font-size:18px} header img.logo{width:38px;height:38px} main{padding:18px 12px 60px} .toolbar{padding:9px 14px} nav{top:70px} .ing-row{grid-template-columns:1fr 64px 24px 66px 26px;padding:6px 7px} }
 </style>
 </head>
 <body>
@@ -263,14 +271,14 @@ function defaultState(){
   const emp=(nombre,costo,shake,food,ex={})=>Object.assign({codigo:"",nombre,proveedor:"",costo,shake,food,ultimaCompra:"",stock:"",stockMin:""},ex);
   const empaque=[emp("Vaso 16 oz",3.5,true,false),emp("Tapa domo",1.8,true,false),emp("Popote",0.5,true,false),
     emp("Servilleta",0.2,true,true),emp("Bolsa kraft",1.2,false,true),emp("Contenedor sándwich/wrap",4.5,false,true),emp("Papel encerado",0.6,false,true)];
-  const sh=(nombre,codigo)=>({codigo,nombre,protein:"",scoops:1,ings:[["",""],["",""],["",""],["",""],["",""],["",""]],precio:"",merma:""});
+  const sh=(nombre,codigo)=>({codigo,nombre,protein:"",scoops:1,ings:[],precio:"",merma:"",ivaIncluido:true});
   const shakeNames=["Chocolover","Mr. Nutty","Dubai Pistachio Chocolate","Churro Crush","Blue Lagoon","Matcha Coco Cream",
     "Golden Maca","Matcha Glow","Strawberry Vibes","Berry Açai Dream","Blueberry Vibes","Island Colada","Mocha Rush",
     "Matcha Latte","Dirty Chai Latte","Horchata Latte"];
   const shakeRecipes=shakeNames.map((n,i)=>sh(n,"Shake "+(i+1)));
   shakeRecipes[0]={codigo:"Shake 1",nombre:"Chocolover",protein:"CBUM ISO - Chocolate",scoops:1,
-    ings:[["Leche deslactosada",250],["Plátano",60],["Crema de cacahuate",15],["Cacao en polvo",8],["Cacao nibs",5],["Syrup de chocolate",15]],precio:119,merma:""};
-  const fo=(nombre,codigo)=>({codigo,nombre,ings:[["",""],["",""],["",""],["",""],["",""],["",""],["",""]],precio:"",merma:""});
+    ings:[["Leche deslactosada",250],["Plátano",60],["Crema de cacahuate",15],["Cacao en polvo",8],["Cacao nibs",5],["Syrup de chocolate",15]],precio:119,merma:"",ivaIncluido:true};
+  const fo=(nombre,codigo)=>({codigo,nombre,ings:[],precio:"",merma:"",ivaIncluido:true});
   const foodNames=["Mediterranean Chicken","Turkey Fit","Honey Roast Deli","Smoky Chipotle Chicken (wrap)","Fresh & Crunch Tuna (wrap)","César Crunch (ensalada)","Mediterranean Tuna (ensalada)"];
   const foodRecipes=foodNames.map((n,i)=>fo(n,"Alimento "+(i+1)));
   const rs=(nombre,ex={})=>Object.assign({codigo:"",nombre,proveedor:"",ultimaCompra:"",caducidad:"",costo:"",precio:"",presOriginal:"",equivPiezas:"",invOriginal:"",minOriginal:"",invIndividual:"",minIndividual:""},ex);
@@ -297,6 +305,7 @@ function migrate(s){
   fill(s.bebidas,rd);fill(s.snacks,rd);
   (s.shakeRecipes||[]).forEach((r,i)=>{if(r.codigo===undefined)r.codigo="Shake "+(i+1);});
   (s.foodRecipes||[]).forEach((r,i)=>{if(r.codigo===undefined)r.codigo="Alimento "+(i+1);});
+  [...(s.shakeRecipes||[]),...(s.foodRecipes||[])].forEach(r=>{if(Array.isArray(r.ings))r.ings=r.ings.filter(p=>p&&p[0]);if(r.ivaIncluido===undefined)r.ivaIncluido=true;});
   return s;
 }
 let lastLocalSave=0, realtimeReady=false;
@@ -351,10 +360,11 @@ function calcFood(r){let ins=0;(r.ings||[]).forEach(([n,q])=>{const i=findIng(st
 function finishCalc(ins,r,empaque,prot){
   const merma=r.merma!==""&&r.merma!=null?(+r.merma)/((+r.merma)>1?100:1):state.params.merma;
   const conMerma=ins*(1+merma),total=conMerma+empaque+(+state.params.mano||0);
-  const precio=+r.precio||0,sinIva=precio/(1+state.params.iva);
+  const precio=+r.precio||0,iva=state.params.iva,inc=r.ivaIncluido!==false;
+  const sinIva=inc?precio/(1+iva):precio, conIva=inc?precio:precio*(1+iva), ivaMonto=conIva-sinIva;
   const fc=sinIva?total/sinIva:0,margen=sinIva?sinIva-total:0,margenPct=sinIva?margen/sinIva:0;
-  const sugerido=state.params.foodCost?(total/state.params.foodCost)*(1+state.params.iva):0;
-  return {ins,merma,conMerma,empaque,total,precio,sinIva,fc,margen,margenPct,sugerido,prot,protShare:ins?prot/ins:0};}
+  const sugerido=state.params.foodCost?(total/state.params.foodCost)*(1+iva):0;
+  return {ins,merma,conMerma,empaque,total,precio,sinIva,conIva,ivaMonto,inc,fc,margen,margenPct,sugerido,prot,protShare:ins?prot/ins:0};}
 function fcClass(fc){if(!fc)return"";return fc>0.4?"bad":fc>state.params.foodCost?"warn":"ok";}
 
 /* ---------------- INVENTARIO / TRASPASOS ---------------- */
@@ -475,6 +485,10 @@ function renderParams(m){const p=state.params;
 /* ---------------- PROTEÍNAS ---------------- */
 function cpsCell(p){const v=costPerScoop(p);return fmtU(v)+infoIcon(`<b>Costo por scoop</b><br>Costo del bote ÷ scoops por bote<br>$${(+p.costo||0)} ÷ ${(+p.scoops||0)} = <b>${fmtU(v)}</b>`);}
 function utilCell(p){const c=costPerScoop(p),v=(+p.precioScoop||0)-c;return fmtU(v)+infoIcon(`<b>Utilidad por scoop</b><br>Precio por scoop − costo por scoop<br>$${(+p.precioScoop||0)} − ${fmtU(c)} = <b>${fmtU(v)}</b>`);}
+function ivaPanel(c){const ivap=(state.params.iva*100).toFixed(0);
+  return `<div class="ivc"><div class="ivt">Precio con IVA</div><div class="ivv">${fmt(c.conIva)}</div></div>`
+    +`<div class="ivc"><div class="ivt">IVA (${ivap}%)</div><div class="ivv">${fmt(c.ivaMonto)}</div></div>`
+    +`<div class="ivc"><div class="ivt">Base sin IVA</div><div class="ivv">${fmt(c.sinIva)}</div></div>`;}
 function totBlocks(c){const I=(l,v,info)=>`<div><div class="t">${l}</div><div class="tv">${v}${info?infoIcon(info):""}</div></div>`;
   const mp=(c.merma*100).toFixed(2),ivap=(state.params.iva*100).toFixed(0),fcm=(state.params.foodCost*100).toFixed(0);
   return I("Insumos",fmt(c.ins),`<b>Insumos</b><br>Suma del costo de la proteína (scoops × costo por scoop) y de cada ingrediente (cantidad × costo por unidad).`)
@@ -623,16 +637,16 @@ function renderEmp(m){
 function renderRecipes(m,type){
   const isShake=type==="shake",list=isShake?state.shakeRecipes:state.foodRecipes,ingList=isShake?state.shakeIngs:state.foodIngs;
   m.innerHTML=`<h2>Costeo ${isShake?"Shakes":"Alimentos"}</h2>
-   <p class="hint">Cada uno tiene su <b>número de item</b>. Puedes editar el nombre, agregar o quitar ingredientes con los botones. “% merma” vacío usa el default (${pct(state.params.merma)}). El <b>precio de referencia</b> es solo orientativo; tu precio de venta manda. Si un ingrediente tiene <b>porciones</b> definidas (ej. pollo de Ensalada o Sándwich), elígelas en el menú (líneas con “↳”) y la cantidad se pone sola.</p>
+   <p class="hint">Cada uno tiene su <b>número de item</b>. Puedes editar el nombre, agregar o quitar ingredientes con los botones. “% merma” vacío usa el default (${pct(state.params.merma)}). El <b>precio de referencia</b> es solo orientativo; tu precio de venta manda. Si un ingrediente tiene <b>porciones</b> definidas (ej. pollo de Ensalada o Sándwich), elígelas en el menú (líneas con “↳”) y la cantidad se pone sola. Marca o desmarca <b>“El precio ya incluye IVA”</b> y el desglose (base, IVA y total) se ajusta solo.</p>
    <div id="reclist"></div><button class="btn ghost" id="addrec">+ Agregar ${isShake?"shake":"alimento"}</button>`;
   const cont=m.querySelector("#reclist");
   list.forEach((r,ri)=>cont.appendChild(recipeCard(r,ri,type,ingList,isShake)));
   m.querySelector("#addrec").onclick=()=>{const n=list.length+1;
-    list.push(isShake?{codigo:"Shake "+n,nombre:"Nuevo shake",protein:"",scoops:1,ings:[["",""]],precio:"",merma:""}
-                     :{codigo:"Alimento "+n,nombre:"Nuevo alimento",ings:[["",""]],precio:"",merma:""});save();render();};
+    list.push(isShake?{codigo:"Shake "+n,nombre:"Nuevo shake",protein:"",scoops:1,ings:[],precio:"",merma:"",ivaIncluido:true}
+                     :{codigo:"Alimento "+n,nombre:"Nuevo alimento",ings:[],precio:"",merma:"",ivaIncluido:true});save();render();};
 }
 function recipeCard(r,ri,type,ingList,isShake){
-  if(!r.ings||!r.ings.length)r.ings=[["",""]];
+  if(!Array.isArray(r.ings))r.ings=[];
   const calc=isShake?calcShake(r):calcFood(r);
   const div=document.createElement("div");div.className="recipe";
   const sepP="§§";
@@ -649,32 +663,37 @@ function recipeCard(r,ri,type,ingList,isShake){
    <div class="ings"></div>
    <div class="addbar"><button class="btn ghost mini" data-act="adding">+ ingrediente</button></div>
    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:12px">
-     <label style="flex:0 0 auto"><div class="t muted" style="font-size:11px">Precio venta (público)</div><input class="n" data-f="precio" value="${esc(r.precio)}" style="width:120px"></label>
+     <label style="flex:0 0 auto"><div class="t muted" style="font-size:11px">Precio de venta</div><input class="n" data-f="precio" value="${esc(r.precio)}" style="width:120px"></label>
+     <label class="ivachk" title="Si el precio que escribiste ya trae IVA, déjalo marcado. Si lo escribiste sin IVA, desmárcalo y se le suma 16%."><input type="checkbox" data-f="ivaIncluido" ${r.ivaIncluido!==false?'checked':''}> El precio ya incluye IVA</label>
      <label style="flex:0 0 auto"><div class="t muted" style="font-size:11px">% merma (opcional)</div><input class="n" data-f="merma" value="${esc(r.merma)}" style="width:110px" placeholder="${state.params.merma*100}"></label>
      ${isShake?`<span class="tag2" title="Qué % del costo de insumos es proteína">Proteína: ${pct(calc.protShare)}</span>`:''}</div>
+   <div class="ivapanel">${ivaPanel(calc)}</div>
    <div class="totals">${totBlocks(calc)}</div></div>
    <div class="legend" style="margin-top:8px">💡 El <b>precio de referencia</b> es solo orientativo para tu meta de food cost. Tu <b>precio de venta</b> manda: defínelo según tu mercado.</div>
    <div class="row-actions"><button class="btn mini ghost warn" data-act="del">Eliminar ${isShake?"shake":"alimento"}</button></div></div>`;
   const ingsBox=div.querySelector(".ings");
+  if(!r.ings.length)ingsBox.innerHTML=`<div class="ing-empty">Aún no hay ingredientes. Toca <b>“+ ingrediente”</b> para agregar el primero.</div>`;
   r.ings.forEach((pair,idx)=>{const row=document.createElement("div");row.className="ing-row";
     const i=findIng(ingList,pair[0]);const lc=i&&pair[1]?costPerUnit(i)*(+pair[1]):0;
-    row.innerHTML=`<select data-ing="${idx}">${ingOpts(pair)}</select><input class="n" data-cant="${idx}" value="${esc(pair[1])}" placeholder="cant"><div class="c">${lc?fmt(lc):''}</div><button class="xbtn" data-rm="${idx}" title="Quitar">✕</button>`;
+    row.innerHTML=`<select data-ing="${idx}">${ingOpts(pair)}</select><input class="n" data-cant="${idx}" value="${esc(pair[1])}" placeholder="cant"><span class="ing-u muted" data-u="${idx}">${i?esc(i.unidad):''}</span><div class="c">${lc?fmt(lc):'—'}</div><button class="xbtn" data-rm="${idx}" title="Quitar">✕</button>`;
     ingsBox.appendChild(row);});
   const listRef=isShake?state.shakeRecipes:state.foodRecipes;
-  div.querySelectorAll("[data-f]").forEach(inp=>{const ev=inp.tagName==="SELECT"?"change":"input";
-    inp.addEventListener(ev,e=>{r[e.target.dataset.f]=e.target.value;save();updateTotals();});});
+  div.querySelectorAll("[data-f]").forEach(inp=>{const ev=(inp.tagName==="SELECT"||inp.type==="checkbox")?"change":"input";
+    inp.addEventListener(ev,e=>{r[e.target.dataset.f]= e.target.type==="checkbox"? e.target.checked : e.target.value; save();updateTotals();});});
   div.querySelectorAll("[data-ing]").forEach(sel=>sel.addEventListener("change",e=>{const idx=+e.target.dataset.ing,val=e.target.value,pair=r.ings[idx];
     if(val.indexOf(sepP)>=0){const parts=val.split(sepP);pair[0]=parts[0];pair[2]=parts[1];const ing=findIng(ingList,parts[0]);const pp=ing&&(ing.porciones||[]).find(x=>x.nombre===parts[1]);if(pp){pair[1]=pp.cant;const ci=div.querySelectorAll("[data-cant]")[idx];if(ci)ci.value=pp.cant;}}
     else{pair[0]=val;pair[2]="";}
+    const us=div.querySelectorAll('[data-u]')[idx];if(us){const ni=findIng(ingList,pair[0]);us.textContent=ni?ni.unidad:"";}
     save();updateTotals();updateLine(idx);}));
   div.querySelectorAll("[data-cant]").forEach(inp=>inp.addEventListener("input",e=>{r.ings[+e.target.dataset.cant][1]=e.target.value;save();updateTotals();updateLine(+e.target.dataset.cant);}));
-  div.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{r.ings.splice(+b.dataset.rm,1);if(!r.ings.length)r.ings=[["",""]];save();render();});
+  div.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{r.ings.splice(+b.dataset.rm,1);save();render();});
   div.querySelector('[data-act="adding"]').onclick=()=>{r.ings.push(["",""]);save();render();};
   div.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar “"+r.nombre+"”?")){listRef.splice(ri,1);save();render();}};
   function updateLine(idx){const pair=r.ings[idx];const i=findIng(ingList,pair[0]);const lc=i&&pair[1]?costPerUnit(i)*(+pair[1]):0;
     div.querySelectorAll(".ing-row")[idx].querySelector(".c").textContent=lc?fmt(lc):"";}
   function updateTotals(){const c=isShake?calcShake(r):calcFood(r);
     div.querySelector(".totals").innerHTML=totBlocks(c);
+    const ivp=div.querySelector(".ivapanel");if(ivp)ivp.innerHTML=ivaPanel(c);
     const tg=div.querySelector(".tag2");if(tg)tg.textContent="Proteína: "+pct(c.protShare);}
   return div;
 }
