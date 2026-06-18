@@ -137,6 +137,13 @@
   .fld.der .dv{font-family:var(--display);font-weight:700;color:var(--green);font-variant-numeric:tabular-nums;font-size:14px;display:flex;align-items:center}
   .fld .urow{display:flex;align-items:center;gap:6px}.fld .urow small{color:var(--muted);font-size:11px}
   .ingsearch{width:100%;max-width:340px;margin:0 0 14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .protctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  .protctrls select{max-width:210px}
+  .btn.on{background:var(--accent);color:var(--green);border-color:var(--accent)}
+  tr.dragging{opacity:.35}
+  tr.drop-t td{box-shadow:inset 0 2px 0 0 var(--accent)}
+  .draghandle{cursor:grab;font-size:14px;line-height:1;color:var(--muted)}
+  .draghandle:active{cursor:grabbing}
   /* inventario */
   .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
@@ -215,6 +222,7 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const DOC_ID="shakeaholic", SESS="shakeaholic_session_v1", CACHE="shakeaholic_cache_v2";
 const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 let currentUser=null;
+let protUI={q:"",brand:"",byBrand:false}, dragIndex=null;
 const fmt=(n)=> (n||n===0)? "$"+Number(n).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}):"–";
 const num=(n)=> (n||n===0)? Number(n).toLocaleString("es-MX"):"0";
 const fmtU=(n)=> (n||n===0)? "$"+Number(n).toLocaleString("es-MX",{minimumFractionDigits:4,maximumFractionDigits:4}):"–";
@@ -522,23 +530,55 @@ function totBlocks(c){const I=(l,v,info)=>`<div><div class="t">${l}</div><div cl
    +I("Margen $",fmt(c.margen),`<b>Margen</b><br>Precio sin IVA − costo total<br>${fmt(c.sinIva)} − ${fmt(c.total)} = <b>${fmt(c.margen)}</b>`)
    +I("Ref. "+pct(state.params.foodCost),`<span class="muted">${fmt(round5(c.sugerido))}</span>`,`<b>Precio de referencia</b><br>(Costo total ÷ meta de food cost) × (1 + IVA)<br>(${fmt(c.total)} ÷ ${fcm}%) × (1 + ${ivap}%) ≈ <b>${fmt(round5(c.sugerido))}</b><br>Solo referencia: tu precio de venta lo defines tú.`);}
 function renderProt(m){
-  m.innerHTML=`<h2>Proteínas</h2><p class="hint">Catálogo con código, proveedor, fechas, precios (scoop y bote) e inventario doble (botes en bodega / scoops en kiosko). Usa <b>⇄</b> para traspasar un bote a venta por scoop. Usa <b>↑ ↓</b> para acomodar el orden, o <b>Ordenar por marca</b> para agruparlas.</p>
+  const brands=[...new Set(state.proteins.map(p=>p.marca).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+  let rows=state.proteins.map((p,i)=>({p,i}));
+  if(protUI.brand)rows=rows.filter(r=>(r.p.marca||"")===protUI.brand);
+  if(protUI.byBrand)rows=rows.slice().sort((a,b)=>(a.p.marca||"").localeCompare(b.p.marca||"",'es',{sensitivity:'base'})||(a.p.sabor||"").localeCompare(b.p.sabor||"",'es',{sensitivity:'base'}));
+  const canReorder=!protUI.brand && !protUI.byBrand;
+  const anyFilter=!!(protUI.q||protUI.brand||protUI.byBrand);
+  m.innerHTML=`<h2>Proteínas</h2><p class="hint">Catálogo con código, proveedor, fechas, precios (scoop y bote) e inventario doble (botes en bodega / scoops en kiosko). Tu <b>orden</b> lo defines arrastrando ⠿ o con ↑ ↓ y se guarda. <b>Ver por marca</b> y el buscador son vistas temporales: no cambian tu orden.</p>
+   <div class="protctrls">
+     <input id="protSearch" class="ingsearch" style="margin:0;flex:1;min-width:200px" placeholder="🔎 Buscar (sabor, marca, proveedor, código)…" value="${esc(protUI.q)}">
+     <select id="protBrand"><option value="">Todas las marcas</option>${brands.map(b=>`<option ${b===protUI.brand?'selected':''}>${esc(b)}</option>`).join("")}</select>
+     <button class="btn ghost${protUI.byBrand?' on':''}" id="protByBrand">${protUI.byBrand?'✓ ':''}Ver por marca</button>
+     ${anyFilter?'<button class="btn ghost" id="protReset">↺ Mi orden</button>':''}
+   </div>
+   <div class="muted" style="font-size:11.5px;margin:-2px 0 8px">${canReorder?'Arrastra ⠿ o usa ↑ ↓ para acomodar a tu gusto — tu orden se guarda.':'Vista temporal (no cambia tu orden). Toca <b>↺ Mi orden</b> para volver a reacomodar.'}</div>
    <div class="scroll"><table><thead><tr>
    <th class="sticky">Sabor</th><th>Código</th><th>Marca</th><th>Proveedor</th><th>F. compra</th><th>F. cad</th>
    <th class="num">Pres(g)</th><th class="num">Costo bote</th><th class="num">Scoops</th><th class="num">Costo/scoop</th>
    <th class="num">Precio/scoop</th><th class="num">Util/scoop</th><th class="num">Precio bote</th>
    <th class="num">Inv botes</th><th class="num">Mín botes</th><th class="num">Inv scoops</th><th class="num">Mín scoops</th><th>Acción</th></tr></thead><tbody>
-   ${state.proteins.map((p,i)=>protRow(p,i)).join("")}</tbody></table></div>
-   <div class="addbar"><button class="btn ghost" id="addP">+ Agregar proteína</button><button class="btn ghost" id="sortP">↕ Ordenar por marca</button></div>`;
-  state.proteins.forEach((p,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);bindRow(tr,"proteins",i,updProtRow);
+   ${rows.map(r=>protRow(r.p,r.i,canReorder)).join("")}</tbody></table></div>
+   <div class="addbar"><button class="btn ghost" id="addP">+ Agregar proteína</button></div>`;
+  rows.forEach(r=>{const i=r.i,p=r.p;const tr=m.querySelector(`tr[data-i="${i}"]`);if(!tr)return;
+    bindRow(tr,"proteins",i,updProtRow);
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso("proteins",i);
-    tr.querySelector('[data-act="up"]').onclick=()=>{if(i>0){const a=state.proteins;[a[i-1],a[i]]=[a[i],a[i-1]];save();render();}};
-    tr.querySelector('[data-act="down"]').onclick=()=>{const a=state.proteins;if(i<a.length-1){[a[i],a[i+1]]=[a[i+1],a[i]];save();render();}};
-    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+protKey(p)+"?")){state.proteins.splice(i,1);save();render();}};});
-  m.querySelector("#sortP").onclick=()=>{state.proteins.sort((a,b)=>(a.marca||"").localeCompare(b.marca||"",'es',{sensitivity:'base'})||(a.sabor||"").localeCompare(b.sabor||"",'es',{sensitivity:'base'}));save();render();};
+    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+protKey(p)+"?")){state.proteins.splice(i,1);save();render();}};
+    if(canReorder){
+      tr.querySelector('[data-act="up"]').onclick=()=>{if(i>0){const a=state.proteins;[a[i-1],a[i]]=[a[i],a[i-1]];save();render();}};
+      tr.querySelector('[data-act="down"]').onclick=()=>{const a=state.proteins;if(i<a.length-1){[a[i],a[i+1]]=[a[i+1],a[i]];save();render();}};
+      const hd=tr.querySelector('[data-act="drag"]');
+      hd.setAttribute("draggable","true");
+      hd.addEventListener("dragstart",e=>{dragIndex=i;e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(i));}catch(_){}try{e.dataTransfer.setDragImage(tr,12,12);}catch(_){}tr.classList.add("dragging");});
+      hd.addEventListener("dragend",()=>{tr.classList.remove("dragging");m.querySelectorAll("tr.drop-t").forEach(x=>x.classList.remove("drop-t"));dragIndex=null;});
+      tr.addEventListener("dragover",e=>{if(dragIndex===null)return;e.preventDefault();e.dataTransfer.dropEffect="move";m.querySelectorAll("tr.drop-t").forEach(x=>x.classList.remove("drop-t"));tr.classList.add("drop-t");});
+      tr.addEventListener("drop",e=>{if(dragIndex===null)return;e.preventDefault();const to=i;if(dragIndex!==to){const a=state.proteins;const x=a.splice(dragIndex,1)[0];a.splice(to,0,x);dragIndex=null;save();render();}});
+    }});
+  const sb=m.querySelector("#protSearch");
+  sb.addEventListener("input",e=>{protUI.q=e.target.value;applyProtSearch(m);});
+  m.querySelector("#protBrand").addEventListener("change",e=>{protUI.brand=e.target.value;render();});
+  m.querySelector("#protByBrand").onclick=()=>{protUI.byBrand=!protUI.byBrand;render();};
+  const rst=m.querySelector("#protReset");if(rst)rst.onclick=()=>{protUI={q:"",brand:"",byBrand:false};render();};
   m.querySelector("#addP").onclick=()=>{state.proteins.push({codigo:"",marca:"Nueva",sabor:"—",proveedor:"",fechaCompra:"",fechaCaducidad:"",pres:"",costo:"",scoops:"",precioScoop:"",precioBote:"",invOriginal:"",minOriginal:"",invScoops:"",minScoops:""});save();render();};
+  applyProtSearch(m);
 }
-function protRow(p,i){const cps=costPerScoop(p),util=(+p.precioScoop||0)-cps;
+function applyProtSearch(m){const q=(protUI.q||"").toLowerCase().trim();
+  m.querySelectorAll('tbody tr[data-i]').forEach(tr=>{const p=state.proteins[+tr.dataset.i]||{};
+    const hay=[p.sabor,p.marca,p.proveedor,p.codigo].map(x=>(x||"").toString().toLowerCase()).join(" ");
+    tr.style.display=(!q||hay.indexOf(q)>=0)?"":"none";});}
+function protRow(p,i,canReorder){const cps=costPerScoop(p),util=(+p.precioScoop||0)-cps;
+  const reorder = canReorder ? `<span class="draghandle" data-act="drag" title="Arrastrar para mover">⠿</span><div style="display:flex;flex-direction:column;gap:2px"><button class="btn mini ghost" data-act="up" title="Subir" style="padding:1px 6px;line-height:1">↑</button><button class="btn mini ghost" data-act="down" title="Bajar" style="padding:1px 6px;line-height:1">↓</button></div>` : '';
   return `<tr data-i="${i}">
    <td class="sticky"><input class="w-tx" data-f="sabor" value="${esc(p.sabor)}" style="font-weight:600"></td>
    <td><input class="w-md" data-f="codigo" value="${esc(p.codigo)}"></td>
@@ -557,7 +597,7 @@ function protRow(p,i){const cps=costPerScoop(p),util=(+p.precioScoop||0)-cps;
    <td><input class="n w-sm" data-f="minOriginal" value="${esc(p.minOriginal)}"></td>
    <td><input class="n w-sm" data-f="invScoops" value="${esc(p.invScoops)}"></td>
    <td><input class="n w-sm" data-f="minScoops" value="${esc(p.minScoops)}"></td>
-   <td><div style="display:flex;gap:4px;align-items:center"><div style="display:flex;flex-direction:column;gap:2px"><button class="btn mini ghost" data-act="up" title="Subir" style="padding:2px 6px;line-height:1">↑</button><button class="btn mini ghost" data-act="down" title="Bajar" style="padding:2px 6px;line-height:1">↓</button></div><button class="btn tr" data-act="tr" title="Traspasar bote → scoops">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px" title="Eliminar">✕</button></div></td></tr>`;}
+   <td><div style="display:flex;gap:5px;align-items:center">${reorder}<button class="btn tr" data-act="tr" title="Traspasar bote → scoops">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px" title="Eliminar">✕</button></div></td></tr>`;}
 function updProtRow(tr,p){tr.querySelector('[data-d="cps"]').innerHTML=cpsCell(p);
   tr.querySelector('[data-d="util"]').innerHTML=utilCell(p);}
 
