@@ -144,6 +144,26 @@
   tr.drop-t td{box-shadow:inset 0 2px 0 0 var(--accent)}
   .draghandle{cursor:grab;font-size:14px;line-height:1;color:var(--muted)}
   .draghandle:active{cursor:grabbing}
+  .printhead{display:none;font-weight:700;color:var(--green);font-size:15px;margin:4px 0 12px;font-family:var(--display)}
+  .buyctrls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 14px}
+  .grandtot{margin-left:auto;font-size:14px;color:var(--green)}
+  .buygroup{margin-bottom:16px}
+  .buyhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--display);font-weight:700;color:var(--green);font-size:14px;padding:8px 4px;border-bottom:2px solid var(--accent);margin-bottom:6px}
+  .buyhead .buysub{margin-left:auto;background:var(--cream);border:1px solid var(--accent);border-radius:8px;padding:3px 10px;font-size:13px}
+  .buyc{background:#fffbe9;border-color:var(--accent)!important;font-weight:700}
+  td.lowc{color:var(--bad);font-weight:700}
+  .invsession{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0 14px}
+  .sessbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .invconteo{background:#fffbe9;border-color:var(--accent)!important}
+  @media print{
+    header,nav,.toolbar,.addbar,.legend,.no-print,.seg,.filterbar,.sessbtns,.cards{display:none!important}
+    #main{padding:0!important} #app{display:block!important}
+    .scroll{max-height:none!important;overflow:visible!important;border:0!important}
+    body,#app{background:#fff!important}
+    .printhead{display:block!important}
+    table{font-size:11px} .buygroup,.invsession{break-inside:avoid}
+    .invsession{border:1px solid #999}
+  }
   /* inventario */
   .seg{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:13px;padding:4px;gap:4px;margin-bottom:14px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--green);font-family:var(--display);font-weight:600;font-size:14px;padding:9px 16px;border-radius:9px;cursor:pointer;min-height:42px;transition:background .15s}
@@ -444,7 +464,7 @@ function openTraspaso(cat,i){
 /* ---------------- NAV ---------------- */
 const TABS=[["dash","Resumen"],["shakes","Costeo Shakes"],["alimentos","Costeo Alimentos"],
   ["prot","Proteínas"],["ings","Ingred. Shakes"],["ingf","Ingred. Alimentos"],["emp","Empaque"],
-  ["bebidas","Bebidas"],["snacks","Snacks/Treats"],["inv","Inventario"],["param","Parámetros"]];
+  ["bebidas","Bebidas"],["snacks","Snacks/Treats"],["inv","Inventario"],["compras","Compras"],["param","Parámetros"]];
 let tab="dash",invView="todos",invSearch="",invCat="all";
 function renderNav(){
   document.getElementById("nav").innerHTML=TABS.map(([id,n])=>`<button data-tab="${id}" class="${id===tab?'active':''}">${n}</button>`).join("");
@@ -460,7 +480,8 @@ function render(){const m=document.getElementById("main");
   if(tab==="alimentos")return renderRecipes(m,"food");
   if(tab==="bebidas")return renderResale(m,"bebidas","Bebidas");
   if(tab==="snacks")return renderResale(m,"snacks","Snacks / Treats");
-  if(tab==="inv")return renderInventario(m);}
+  if(tab==="inv")return renderInventario(m);
+  if(tab==="compras")return renderCompras(m);}
 
 /* generic row field binder */
 function bindRow(tr,cat,i,after){
@@ -848,8 +869,20 @@ function collectInv(){let rows=[];Object.keys(INV).forEach(cat=>{if(invCat!=="al
     rows.push({cat,i,it,cfg,name});});});return rows;}
 
 function renderInventario(m){
+  state.invSesion=state.invSesion||{inicio:"",fin:"",firma:""};
+  const ses=state.invSesion;
   m.innerHTML=`<h2>Inventario</h2>
-   <p class="hint"><b>Bodega</b> = mercancía en presentación original (abajo). <b>Kiosko</b> = lo disponible para venta individual o por porción. Cambia de vista, busca o filtra, y traspasa de bodega a kiosko desde aquí — pide la clave del encargado.</p>
+   <p class="hint no-print"><b>Bodega</b> = mercancía en presentación original. <b>Kiosko</b> = lo disponible para venta individual o por porción. En <b>Bodega</b> y <b>Kiosko</b> tienes una columna <b>Conteo</b> editable para el inventario físico, con su diferencia contra el sistema. Traspasa de bodega a kiosko con la clave del encargado.</p>
+   <div class="printhead">📋 Inventario físico · Shakeaholic · ${new Date().toLocaleDateString("es-MX")}</div>
+   <div class="invsession">
+     <div class="gtitle" style="margin-bottom:8px">📋 Sesión de inventario físico</div>
+     <div class="ifields" style="grid-template-columns:repeat(auto-fill,minmax(210px,1fr))">
+       <label class="fld"><span>Inicio (fecha y hora)</span><div class="urow"><input type="datetime-local" id="sesIni" value="${esc(ses.inicio)}"><button class="btn mini ghost no-print" id="sesIniNow">Ahora</button></div></label>
+       <label class="fld"><span>Término (fecha y hora)</span><div class="urow"><input type="datetime-local" id="sesFin" value="${esc(ses.fin)}"><button class="btn mini ghost no-print" id="sesFinNow">Ahora</button></div></label>
+       <label class="fld"><span>Firma (responsable del conteo)</span><input id="sesFirma" value="${esc(ses.firma)}" placeholder="Nombre de quien cuenta"></label>
+     </div>
+     <div class="sessbtns"><button class="btn no-print" id="invPrint">🖨 Imprimir conteo</button><button class="btn ghost no-print" id="invApply">✓ Aplicar conteo a existencias</button></div>
+   </div>
    <div class="seg" id="invSeg" role="tablist">
      <button data-v="todos" class="${invView==="todos"?"active":""}">Todos</button>
      <button data-v="bodega" class="${invView==="bodega"?"active":""}">🏬 Bodega</button>
@@ -867,6 +900,17 @@ function renderInventario(m){
   seg.querySelectorAll("button").forEach(b=>b.onclick=()=>{invView=b.dataset.v;seg.querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));paintInv();});
   m.querySelector("#invSearch").addEventListener("input",e=>{invSearch=e.target.value;paintInv();});
   m.querySelector("#invCat").addEventListener("change",e=>{invCat=e.target.value;paintInv();});
+  m.querySelector("#sesIni").addEventListener("input",e=>{ses.inicio=e.target.value;save();});
+  m.querySelector("#sesFin").addEventListener("input",e=>{ses.fin=e.target.value;save();});
+  m.querySelector("#sesFirma").addEventListener("input",e=>{ses.firma=e.target.value;save();});
+  m.querySelector("#sesIniNow").onclick=()=>{ses.inicio=nowLocal();m.querySelector("#sesIni").value=ses.inicio;save();};
+  m.querySelector("#sesFinNow").onclick=()=>{ses.fin=nowLocal();m.querySelector("#sesFin").value=ses.fin;save();};
+  m.querySelector("#invPrint").onclick=()=>window.print();
+  m.querySelector("#invApply").onclick=()=>{if(!confirm("¿Aplicar el conteo capturado a las existencias? Sobrescribe el stock del sistema con lo contado en Bodega y Kiosko."))return;
+    Object.keys(INV).forEach(cat=>state[cat].forEach(it=>{const cfg=INV[cat];
+      if(it.conteoBodega!==undefined&&it.conteoBodega!=="")it[cfg.orig]=+it.conteoBodega||0;
+      if(it.conteoKiosko!==undefined&&it.conteoKiosko!=="")it[cfg.ind]=+it.conteoKiosko||0;}));
+    save();render();};
   paintInv();
 }
 function kpis(arr){
@@ -890,23 +934,27 @@ function paintInv(){
   if(!rows.length){body.innerHTML=kpis(rows)+`<div class="empty">No hay productos que coincidan con la búsqueda o el filtro.</div>`;return;}
   let head,bodyRows;
   if(invView==="bodega"){
-    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th>Presentación</th><th class="num">En bodega</th><th class="num">Mín</th><th>Estado</th><th>Caducidad</th><th>Acción</th>`;
+    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th>Presentación</th><th class="num">En bodega</th><th class="num">Mín</th><th class="num">Conteo</th><th class="num">Dif.</th><th>Estado</th><th>Caducidad</th><th>Acción</th>`;
     bodyRows=rows.map(({cat,i,it,cfg,name})=>`<tr data-cat="${cat}" data-i="${i}">
       <td class="sticky">${esc(name)}</td><td class="muted">${CATLABEL[cat]}</td><td class="muted">${esc(it.codigo)}</td>
       <td>${esc(invPres(cat,it))}</td>
       <td class="num">${num(it[cfg.orig])} <span class="muted" style="font-size:11px">${cfg.origUnit}</span></td>
       <td class="num muted">${num(it[cfg.origMin])}</td>
+      <td class="num"><input class="n w-sm invconteo" data-conteo="bodega" value="${it.conteoBodega!==undefined?esc(it.conteoBodega):''}" placeholder="${num(it[cfg.orig])}"></td>
+      <td class="num" data-diff>${diffCell(it.conteoBodega,it[cfg.orig])}</td>
       <td>${stateCell(it[cfg.orig],it[cfg.origMin])}</td>
       <td>${cadCell(it[cfg.cad])}</td>
       <td><button class="btn tr" data-act="tr" title="Traspasar a kiosko">⇄ Traspasar</button></td></tr>`).join("");
   } else if(invView==="kiosko"){
-    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th class="num">Disponible</th><th class="num">Mín</th><th>Estado</th><th class="num">En bodega</th><th>Acción</th>`;
+    head=`<th class="sticky">Producto</th><th>Categoría</th><th>Código</th><th class="num">Disponible</th><th class="num">Mín</th><th class="num">Conteo</th><th class="num">Dif.</th><th>Estado</th><th class="num">En bodega</th><th>Acción</th>`;
     bodyRows=rows.map(({cat,i,it,cfg,name})=>{const s=stockState(it[cfg.ind],it[cfg.indMin]);
       const needsRefill=(s.cls!=="ok")&&((+it[cfg.orig]||0)>0);
       return `<tr data-cat="${cat}" data-i="${i}">
       <td class="sticky">${esc(name)}</td><td class="muted">${CATLABEL[cat]}</td><td class="muted">${esc(it.codigo)}</td>
       <td class="num">${num(it[cfg.ind])} <span class="muted" style="font-size:11px">${cfg.indUnit}</span></td>
       <td class="num muted">${num(it[cfg.indMin])}</td>
+      <td class="num"><input class="n w-sm invconteo" data-conteo="kiosko" value="${it.conteoKiosko!==undefined?esc(it.conteoKiosko):''}" placeholder="${num(it[cfg.ind])}"></td>
+      <td class="num" data-diff>${diffCell(it.conteoKiosko,it[cfg.ind])}</td>
       <td>${stateCell(it[cfg.ind],it[cfg.indMin])}</td>
       <td class="num muted">${num(it[cfg.orig])} ${cfg.origUnit}</td>
       <td><button class="btn tr ${needsRefill?"rep":""}" data-act="tr" title="Traer de bodega">⇄ ${needsRefill?"Reponer":"Traspasar"}</button></td></tr>`;}).join("");
@@ -925,6 +973,61 @@ function paintInv(){
   body.innerHTML=kpis(rows)+`<div class="scroll"><table><thead><tr>${head}</tr></thead><tbody>${bodyRows}</tbody></table></div>
     <p class="legend"><span class="pill ok">OK</span> sobre el mínimo · <span class="pill warn">Bajo</span> en o bajo el mínimo · <span class="pill bad">Agotado</span> sin existencias. Caducidad: 🟡 ≤14 días o vencido.</p>`;
   body.querySelectorAll('[data-act="tr"]').forEach(b=>{const tr=b.closest("tr");b.onclick=()=>openTraspaso(tr.dataset.cat,+tr.dataset.i);});
+  body.querySelectorAll("[data-conteo]").forEach(inp=>{const tr=inp.closest("tr"),cat=tr.dataset.cat,i=+tr.dataset.i,which=inp.dataset.conteo;
+    inp.addEventListener("input",e=>{const it=state[cat][i],cfg=INV[cat],field=which==="bodega"?"conteoBodega":"conteoKiosko";it[field]=e.target.value;
+      const sys=which==="bodega"?it[cfg.orig]:it[cfg.ind],dc=tr.querySelector("[data-diff]");if(dc)dc.innerHTML=diffCell(e.target.value,sys);save();});});
+}
+
+function nowLocal(){const d=new Date(),p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;}
+function diffCell(c,sys){if(c===undefined||c===null||c==="")return '<span class="muted">—</span>';const d=(+c||0)-(+sys||0),cls=d===0?"ok":(d<0?"bad":"warn");return `<span class="pill ${cls}">${d>0?"+":""}${num(d)}</span>`;}
+const BUY=[
+  {cat:"proteins",name:p=>protKey(p),prov:"proveedor",stock:"invOriginal",min:"minOriginal",cost:"costo",unit:"botes",pres:p=>p.pres?p.pres+" g/bote":"Bote"},
+  {cat:"shakeIngs",name:i=>i.nombre,prov:"proveedor",stock:"invOriginal",min:"minOriginal",cost:"costo",unit:"pres.",pres:i=>i.presCompra||"Presentación"},
+  {cat:"foodIngs",name:i=>i.nombre,prov:"proveedor",stock:"invOriginal",min:"minOriginal",cost:"costo",unit:"pres.",pres:i=>i.presCompra||"Presentación"},
+  {cat:"bebidas",name:b=>b.nombre,prov:"proveedor",stock:"invOriginal",min:"minOriginal",cost:"costo",unit:"cajas",pres:b=>b.presOriginal||"Caja"},
+  {cat:"snacks",name:s=>s.nombre,prov:"proveedor",stock:"invOriginal",min:"minOriginal",cost:"costo",unit:"cajas",pres:s=>s.presOriginal||"Caja"},
+  {cat:"empaque",name:e=>e.nombre,prov:"proveedor",stock:"stock",min:"stockMin",cost:"costo",unit:"u",pres:e=>"Unidad"},
+];
+function buySugerido(it,cfg){const exist=+it[cfg.stock]||0,min=+it[cfg.min]||0;return min>0?Math.max(0,Math.ceil(min*2-exist)):0;}
+function renderCompras(m){
+  const groups={};
+  BUY.forEach(cfg=>(state[cfg.cat]||[]).forEach((it,i)=>{
+    const prov=(it[cfg.prov]||"").trim()||"Sin proveedor";
+    (groups[prov]=groups[prov]||[]).push({cfg,it,i,name:cfg.name(it),exist:+it[cfg.stock]||0,min:+it[cfg.min]||0,cost:+it[cfg.cost]||0,sugerido:buySugerido(it,cfg),unit:cfg.unit,pres:cfg.pres(it)});
+  }));
+  const provs=Object.keys(groups).sort((a,b)=>a.localeCompare(b,"es",{sensitivity:"base"}));
+  let grand=0;
+  const sections=provs.map(prov=>{const items=groups[prov];let sub=0;
+    const rowsH=items.map(r=>{const buy=(r.it.comprar!==""&&r.it.comprar!=null&&r.it.comprar!==undefined)?+r.it.comprar:r.sugerido;const costo=buy*r.cost;sub+=costo;
+      const lowc=r.min>0&&r.exist<=r.min;
+      return `<tr data-cat="${r.cfg.cat}" data-i="${r.i}">
+        <td class="sticky">${esc(r.name)}</td>
+        <td class="muted">${esc(r.pres)}</td>
+        <td class="num ${lowc?'lowc':''}">${num(r.exist)} <span class="muted" style="font-size:10px">${r.unit}</span></td>
+        <td class="num muted">${num(r.min)}</td>
+        <td class="num"><b>${num(r.sugerido)}</b></td>
+        <td class="num"><input class="n w-sm buyc" data-buy value="${(r.it.comprar!==undefined&&r.it.comprar!=="")?esc(r.it.comprar):''}" placeholder="${r.sugerido}"></td>
+        <td class="num muted">${fmt(costo)}</td></tr>`;}).join("");
+    grand+=sub;
+    return `<div class="buygroup"><div class="buyhead">🏷️ ${esc(prov)} <span class="muted" style="font-weight:400">· ${items.length} producto(s)</span><span class="buysub">${fmt(sub)}</span></div>
+      <div class="scroll"><table><thead><tr><th class="sticky">Producto</th><th>Presentación</th><th class="num">Existencia</th><th class="num">Mínimo</th><th class="num">Sugerido</th><th class="num">A comprar</th><th class="num">Costo aprox.</th></tr></thead><tbody>${rowsH}</tbody></table></div></div>`;
+  }).join("");
+  m.innerHTML=`<h2>Compras</h2>
+    <p class="hint no-print">Existencias reales, mínimo y <b>sugerido a comprar</b> (para llegar al doble del mínimo). Solo la columna <b>A comprar</b> es editable; el resto se toma del inventario. Está dividida por proveedor y se puede imprimir.</p>
+    <div class="printhead">🛒 Lista de compras · Shakeaholic · ${new Date().toLocaleDateString("es-MX")}</div>
+    <div class="buyctrls no-print">
+      <button class="btn" id="buyPrint">🖨 Imprimir</button>
+      <button class="btn ghost" id="buyFill">Usar sugeridos</button>
+      <button class="btn ghost" id="buyClear">Vaciar columna</button>
+      <span class="grandtot">Total aprox.: <b>${fmt(grand)}</b></span>
+    </div>
+    ${sections||'<div class="empty">No hay productos con proveedor/inventario. Captura existencias y mínimos en los catálogos.</div>'}`;
+  m.querySelectorAll("[data-buy]").forEach(inp=>{const tr=inp.closest("tr"),cat=tr.dataset.cat,i=+tr.dataset.i;
+    inp.addEventListener("input",e=>{state[cat][i].comprar=e.target.value;save();});
+    inp.addEventListener("change",()=>render());});
+  m.querySelector("#buyPrint").onclick=()=>window.print();
+  m.querySelector("#buyFill").onclick=()=>{BUY.forEach(cfg=>(state[cfg.cat]||[]).forEach(it=>{const s=buySugerido(it,cfg);it.comprar=s?String(s):"";}));save();render();};
+  m.querySelector("#buyClear").onclick=()=>{BUY.forEach(cfg=>(state[cfg.cat]||[]).forEach(it=>{it.comprar="";}));save();render();};
 }
 
 /* ---------------- RESPALDO / CSV ---------------- */
