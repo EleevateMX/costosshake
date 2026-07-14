@@ -237,6 +237,7 @@
   </header>
   <nav id="nav"></nav>
   <div class="toolbar">
+    <button class="btn mini" id="tbBackupAll">💾 Guardar TODO</button>
     <button class="btn ghost mini" id="tbBackup">⬇ Respaldar</button>
     <button class="btn ghost mini" id="tbRestore">⬆ Restaurar</button>
     <button class="btn ghost mini" id="tbCsv">📄 Exportar CSV</button>
@@ -256,7 +257,7 @@ const DOC_ID="shakeaholic", SESS="shakeaholic_session_v1", CACHE="shakeaholic_ca
 const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 let currentUser=null;
 /* ===== Auto-actualización (sin borrar caché a mano) ===== */
-const APP_VERSION="2026-07-13-01";
+const APP_VERSION="2026-07-13-02";
 async function checkForUpdate(){try{
   const r=await fetch(location.pathname+"?_="+Date.now(),{cache:"no-store"});
   if(!r.ok)return;const t=await r.text();
@@ -1242,16 +1243,51 @@ function exportCsv(){
   rs(state.bebidas,"Bebida");rs(state.snacks,"Snack/Treat");
   const csv="\ufeff"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
   download(`shakeaholic_costeo_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");}
+function csvOf(rows){return "\ufeff"+rows.map(r=>r.map(x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`).join(",")).join("\n");}
+function catalogoCsv(){
+  const rows=[["Categoría","Producto","Marca","Código","Cód. barras","Proveedor","Presentación","Contenido","Unidad","Costo","Precio","Existencia (bodega)","Mínimo","Existencia (kiosko)","Mín kiosko","Caducidad"]];
+  const P=(c,n,it,o)=>rows.push([c,n,it.marca||"",it.codigo||"",it.codigoBarras||"",it.proveedor||"",o.pres||"",o.cont||"",o.unidad||"",o.costo||"",o.precio||"",o.stock||"",o.min||"",o.ind||"",o.indMin||"",o.cad||""]);
+  (state.proteins||[]).forEach(p=>P("Proteína",protKey(p),p,{pres:p.pres?p.pres+" g":"",cont:p.pres,unidad:"g",costo:p.costo,precio:p.precioScoop,stock:p.invOriginal,min:p.minOriginal,ind:p.invScoops,indMin:p.minScoops,cad:p.fechaCaducidad}));
+  (state.shakeIngs||[]).forEach(i=>P("Ingred. Shake",i.nombre,i,{pres:i.presCompra,cont:i.cont,unidad:i.unidad,costo:i.costo,precio:i.precioPorcion,stock:i.invOriginal,min:i.minOriginal,ind:i.invPorcion,indMin:i.minPorcion,cad:i.fechaCaducidad}));
+  (state.foodIngs||[]).forEach(i=>P("Ingred. Alimento",i.nombre,i,{pres:i.presCompra,cont:i.cont,unidad:i.unidad,costo:i.costo,precio:i.precioPorcion,stock:i.invOriginal,min:i.minOriginal,ind:i.invPorcion,indMin:i.minPorcion,cad:i.fechaCaducidad}));
+  (state.empaque||[]).forEach(e=>P("Empaque",e.nombre,e,{pres:"Unidad",costo:e.costo,stock:e.stock,min:e.stockMin}));
+  (state.bebidas||[]).forEach(b=>P("Bebida",b.nombre,b,{pres:b.presOriginal,cont:b.equivPiezas,unidad:"pz",costo:b.costoCaja,precio:b.precio,stock:b.invOriginal,min:b.minOriginal,ind:b.invIndividual,indMin:b.minIndividual,cad:b.caducidad}));
+  (state.snacks||[]).forEach(s=>P("Snack/Treat",s.nombre,s,{pres:s.presOriginal,cont:s.equivPiezas,unidad:"pz",costo:s.costoCaja,precio:s.precio,stock:s.invOriginal,min:s.minOriginal,ind:s.invIndividual,indMin:s.minIndividual,cad:s.caducidad}));
+  return csvOf(rows);}
+function recetasCsv(){
+  const rows=[["Tipo","Código","Receta","Ingrediente","Cantidad"]];
+  (state.shakeRecipes||[]).forEach(r=>{if(r.protein)rows.push(["Shake",r.codigo||"",r.nombre,"Proteína: "+r.protein,(r.scoops||1)+" scoop(s)"]);
+    (r.ings||[]).forEach(p=>{if(p[0])rows.push(["Shake",r.codigo||"",r.nombre,p[0],p[1]||""]);});});
+  (state.foodRecipes||[]).forEach(r=>(r.ings||[]).forEach(p=>{if(p[0])rows.push(["Alimento",r.codigo||"",r.nombre,p[0],p[1]||""]);}));
+  return csvOf(rows);}
+function kardexCsv(){
+  const rows=[["Categoría","Producto","Fecha","Tipo","Factura","Entradas","Salidas","Existencia","Precio","Caducidad","Nota"]];
+  Object.keys(INV).forEach(cat=>(state[cat]||[]).forEach(it=>{const nm=INV[cat].name(it);
+    (it.kardex||[]).forEach(mv=>rows.push([CATLABEL[cat]||cat,nm,mv.f||"",mv.tipo||"",mv.factura||"",mv.ent||"",mv.sal||"",mv.exist||"",mv.precio||"",mv.cad||"",mv.nota||""]));}));
+  return csvOf(rows);}
+function backupAll(){
+  const d=new Date(),stamp=d.toISOString().slice(0,10)+"_"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0");
+  download(`shakeaholic_RESPALDO_${stamp}.json`,JSON.stringify(state,null,2),"application/json");
+  setTimeout(()=>download(`shakeaholic_catalogo_${stamp}.csv`,catalogoCsv(),"text/csv;charset=utf-8"),350);
+  setTimeout(()=>download(`shakeaholic_recetas_${stamp}.csv`,recetasCsv(),"text/csv;charset=utf-8"),700);
+  setTimeout(()=>download(`shakeaholic_kardex_${stamp}.csv`,kardexCsv(),"text/csv;charset=utf-8"),1050);
+  setTimeout(()=>{setSaved("Respaldo descargado ✓");},1400);}
 function restoreFrom(file){const fr=new FileReader();
   fr.onload=()=>{try{const data=JSON.parse(fr.result);if(!data||!data.params||!data.proteins)throw 0;state=migrate(data);persist();render();setSaved("Restaurado ✓");}
     catch(e){alert("El archivo no es un respaldo válido de este tablero.");}};
   fr.readAsText(file);}
 function wireToolbar(){
+  document.getElementById("tbBackupAll").onclick=backupAll;
   document.getElementById("tbBackup").onclick=backup;
   document.getElementById("tbCsv").onclick=exportCsv;
   document.getElementById("tbRestore").onclick=()=>document.getElementById("fileInput").click();
   document.getElementById("fileInput").onchange=e=>{if(e.target.files[0])restoreFrom(e.target.files[0]);e.target.value="";};
-  document.getElementById("tbReset").onclick=()=>{if(confirm("Esto borra los datos y restaura el ejemplo. ¿Continuar?")){state=defaultState();persist();render();}};
+  document.getElementById("tbReset").onclick=()=>{
+    if(!confirm("⚠️ Esto BORRA todos los datos y restaura el ejemplo.\n\nAntes de continuar te conviene usar 💾 Guardar TODO.\n\n¿Continuar?"))return;
+    const k=prompt("Para borrar, escribe la clave del encargado:");
+    if(k===null)return;
+    if(k!==String(state.params.clave)){alert("Clave incorrecta. No se borró nada.");return;}
+    state=defaultState();persist();render();};
   document.getElementById("logout").onclick=logout;}
 
 /* ---------------- ARRANQUE ---------------- */
