@@ -142,6 +142,8 @@
   .btn.on{background:var(--accent);color:var(--green);border-color:var(--accent)}
   tr.dragging{opacity:.35}
   tr.drop-t td{box-shadow:inset 0 2px 0 0 var(--accent)}
+  .icard.drop-t{box-shadow:inset 0 3px 0 0 var(--accent)}
+  .icard.dragging{opacity:.35}
   .draghandle{cursor:grab;font-size:14px;line-height:1;color:var(--muted)}
   .draghandle:active{cursor:grabbing}
   .printhead{display:none;font-weight:700;color:var(--green);font-size:15px;margin:4px 0 12px;font-family:var(--display)}
@@ -254,7 +256,7 @@ const DOC_ID="shakeaholic", SESS="shakeaholic_session_v1", CACHE="shakeaholic_ca
 const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createClient(SB_URL,SB_KEY):null;
 let currentUser=null;
 /* ===== Auto-actualización (sin borrar caché a mano) ===== */
-const APP_VERSION="2026-07-09-03";
+const APP_VERSION="2026-07-13-01";
 async function checkForUpdate(){try{
   const r=await fetch(location.pathname+"?_="+Date.now(),{cache:"no-store"});
   if(!r.ok)return;const t=await r.text();
@@ -407,6 +409,21 @@ function setSaved(t){const e=document.getElementById("saved");if(e)e.textContent
 
 /* ---------------- CÁLCULOS COSTEO ---------------- */
 function protKey(p){return p.marca+" - "+p.sabor;}
+/* ==== Reordenar genérico (↑ ↓ + arrastrar) para cualquier catálogo ==== */
+let dragKey=null;
+function reorderBtns(){return `<span class="draghandle" data-act="drag" title="Arrastrar para mover">⠿</span><div style="display:flex;flex-direction:column;gap:2px"><button class="btn mini ghost" data-act="up" title="Subir" style="padding:1px 6px;line-height:1">↑</button><button class="btn mini ghost" data-act="down" title="Bajar" style="padding:1px 6px;line-height:1">↓</button></div>`;}
+function bindReorder(el,key,i){
+  const arr=state[key];
+  const up=el.querySelector('[data-act="up"]'),dn=el.querySelector('[data-act="down"]'),hd=el.querySelector('[data-act="drag"]');
+  if(up)up.onclick=()=>{if(i>0){[arr[i-1],arr[i]]=[arr[i],arr[i-1]];save();render();}};
+  if(dn)dn.onclick=()=>{if(i<arr.length-1){[arr[i],arr[i+1]]=[arr[i+1],arr[i]];save();render();}};
+  if(!hd)return;
+  hd.setAttribute("draggable","true");
+  hd.addEventListener("dragstart",e=>{dragIndex=i;dragKey=key;e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(i));}catch(_){}try{e.dataTransfer.setDragImage(el,12,12);}catch(_){}el.classList.add("dragging");});
+  hd.addEventListener("dragend",()=>{el.classList.remove("dragging");document.querySelectorAll(".drop-t").forEach(x=>x.classList.remove("drop-t"));dragIndex=null;dragKey=null;});
+  el.addEventListener("dragover",e=>{if(dragIndex===null||dragKey!==key)return;e.preventDefault();e.dataTransfer.dropEffect="move";document.querySelectorAll(".drop-t").forEach(x=>x.classList.remove("drop-t"));el.classList.add("drop-t");});
+  el.addEventListener("drop",e=>{if(dragIndex===null||dragKey!==key)return;e.preventDefault();if(dragIndex!==i){const x=arr.splice(dragIndex,1)[0];arr.splice(i,0,x);dragIndex=null;dragKey=null;save();render();}});
+}
 function costPerScoop(p){const c=+p.costo,s=+p.scoops;return c&&s?c/s:0;}
 function costPerUnit(i){const c=+i.cont,p=+i.costo;return c&&p?p/c:0;}
 function costPortion(it){const q=+it.porcionQty,cu=costPerUnit(it);return q&&cu?q*cu:0;}
@@ -702,14 +719,15 @@ function openPorciones(key,i){
 
 /* ---------------- INGREDIENTES ---------------- */
 function renderIngs(m,key,title){
-  m.innerHTML=`<h2>${title}</h2><p class="hint">Captura cada ingrediente en su tarjeta. Lo de <b>“salida”</b> (costo por unidad, costo y precio por porción, porciones por presentación) se calcula solo — toca la <b>ⓘ</b> para ver la fórmula. Con <b>Porciones</b> defines varias porciones del mismo ingrediente y su existencia (ej. Pollo: Ensalada 80 g, Sándwich 100 g).</p>
+  m.innerHTML=`<h2>${title}</h2><p class="hint">Captura cada ingrediente en su tarjeta. Lo de <b>“salida”</b> (costo por unidad, costo y precio por porción, porciones por presentación) se calcula solo — toca la <b>ⓘ</b> para ver la fórmula. Con <b>Porciones</b> defines varias porciones del mismo ingrediente y su existencia (ej. Pollo: Ensalada 80 g, Sándwich 100 g). Usa <b>⠿</b> (arrastrar) o <b>↑ ↓</b> para acomodar el orden a tu gusto.</p>
    <input class="ingsearch" id="ingSearch" placeholder="🔎 Buscar ingrediente…">
    <div id="icards">${state[key].map((it,i)=>ingCard(it,i)).join("")}</div>
    <div class="addbar"><button class="btn" id="addI">+ Agregar ingrediente</button></div>`;
   state[key].forEach((it,i)=>{const card=m.querySelector(`.icard[data-i="${i}"]`);bindRow(card,key,i,updIngRow);
     card.querySelector('[data-act="porc"]').onclick=()=>openPorciones(key,i);
     card.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
-    card.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+(it.nombre||"este ingrediente")+"?")){state[key].splice(i,1);save();render();}};});
+    card.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+(it.nombre||"este ingrediente")+"?")){state[key].splice(i,1);save();render();}};
+    bindReorder(card,key,i);});
   const sb=m.querySelector("#ingSearch");
   sb.addEventListener("input",e=>{const q=e.target.value.toLowerCase();
     m.querySelectorAll(".icard").forEach((c,idx)=>{const it=state[key][idx]||{};const hay=[it.nombre,it.codigo,it.codigoBarras,it.marca].map(x=>(x||"").toString().toLowerCase()).join(" ");c.style.display=hay.indexOf(q)>=0?"":"none";});});
@@ -724,6 +742,7 @@ function ingCard(it,i){const uOpts=["g","ml","pz"].map(u=>`<option ${u===it.unid
      <input class="icode" data-f="codigo" value="${esc(it.codigo)}" placeholder="Clave" title="Clave / SKU">
      <input class="icode" data-f="codigoBarras" value="${esc(it.codigoBarras)}" placeholder="Cód. barras" title="Código de barras">
      <div class="icard-acts">
+       ${reorderBtns()}
        <button class="btn mini ghost" data-act="porc" title="Porciones y existencia (ej. Ensalada / Sándwich)">Porciones</button>
        <button class="btn tr" data-act="tr" title="Traspasar presentación → porciones">⇄</button>
        <button class="xbtn" data-act="del" title="Eliminar">✕</button>
@@ -777,11 +796,12 @@ function renderEmp(m){
      <td><input class="n w-sm" data-f="stockMin" value="${esc(e.stockMin)}"></td>
      <td class="num"><input type="checkbox" data-f="shake" ${e.shake?'checked':''} style="width:auto"></td>
      <td class="num"><input type="checkbox" data-f="food" ${e.food?'checked':''} style="width:auto"></td>
-     <td><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></td></tr>`).join("")}</tbody></table></div>
+     <td><div style="display:flex;gap:5px;align-items:center">${reorderBtns()}<button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`).join("")}</tbody></table></div>
    <div class="addbar"><button class="btn ghost" id="addE">+ Agregar empaque</button></div>`;
   const upd=()=>{document.getElementById("cs").textContent=fmt(comboShake());document.getElementById("cf").textContent=fmt(comboFood());};
   state.empaque.forEach((e,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);bindRow(tr,"empaque",i,upd);
-    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+e.nombre+"?")){state.empaque.splice(i,1);save();render();}};});
+    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+e.nombre+"?")){state.empaque.splice(i,1);save();render();}};
+    bindReorder(tr,"empaque",i);});
   m.querySelector("#addE").onclick=()=>{state.empaque.push({codigo:"",codigoBarras:"",marca:"",nombre:"Nuevo empaque",proveedor:"",costo:"",shake:false,food:false,ultimaCompra:"",stock:"",stockMin:""});save();render();};
 }
 
@@ -854,7 +874,7 @@ function recipeCard(r,ri,type,ingList,isShake){
 /* ---------------- BEBIDAS / SNACKS ---------------- */
 function renderResale(m,key,title){
   m.innerHTML=`<h2>${title} <span class="muted" style="font-size:13px">(reventa)</span></h2>
-   <p class="hint">Código, proveedor, última compra y caducidad. <b>Costo caja</b> y <b>Pzas/caja</b> generan el <b>Costo/Beb</b> automático. Inventario doble (cajas en bodega / piezas en kiosko). Usa <b>⇄</b> para traspasar una caja a piezas con clave.</p>
+   <p class="hint">Código, proveedor, última compra y caducidad. <b>Costo caja</b> y <b>Pzas/caja</b> generan el <b>Costo/Beb</b> automático. Inventario doble (cajas en bodega / piezas en kiosko). Usa <b>⇄</b> para traspasar una caja a piezas con clave, y <b>⠿</b> / <b>↑ ↓</b> para acomodar el orden.</p>
    <div class="scroll"><table><thead><tr><th class="sticky">Producto</th><th>Clave</th><th>Cód. barras</th><th>Marca</th><th>Proveedor</th>
    <th>Pres. orig.</th><th class="num">Costo caja</th><th class="num">Pzas/caja</th><th class="num">Costo/Beb</th><th class="num">Precio/Beb</th><th class="num">Margen %</th>
    <th class="num">Inv cajas</th><th class="num">Mín cajas</th><th class="num">Inv piezas</th><th class="num">Mín piezas</th><th>Acción</th></tr></thead><tbody>
@@ -877,7 +897,7 @@ function renderResale(m,key,title){
      <td><input class="n w-sm" data-f="minOriginal" value="${esc(p.minOriginal)}"></td>
      <td><input class="n w-sm" data-f="invIndividual" value="${esc(p.invIndividual)}"></td>
      <td><input class="n w-sm" data-f="minIndividual" value="${esc(p.minIndividual)}"></td>
-     <td><div style="display:flex;gap:5px"><button class="btn tr" data-act="tr" title="Traspasar caja → piezas">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}).join("")}</tbody></table></div>
+     <td><div style="display:flex;gap:5px;align-items:center">${reorderBtns()}<button class="btn tr" data-act="tr" title="Traspasar caja → piezas">⇄</button><button class="xbtn" data-act="del" style="padding:6px 9px">✕</button></div></td></tr>`;}).join("")}</tbody></table></div>
    <div class="addbar"><button class="btn ghost" id="addR">+ Agregar ${title.toLowerCase()}</button></div>`;
   state[key].forEach((p,i)=>{const tr=m.querySelector(`tr[data-i="${i}"]`);
     bindRow(tr,key,i,(tr2,o)=>{const pz=+o.equivPiezas||0;o.costo=pz?(+o.costoCaja||0)/pz:0;const sin=(+o.precio||0)/(1+state.params.iva);const mp=sin?(sin-o.costo)/sin:0;
@@ -886,7 +906,8 @@ function renderResale(m,key,title){
       const a=tr2.querySelector('[data-d="cbeb"]');if(a)a.innerHTML=fmtU(o.costo)+infoIcon(cbInfo);
       const b=tr2.querySelector('[data-d="mp"]');if(b)b.innerHTML=pct(mp)+infoIcon(mpInfo);});
     tr.querySelector('[data-act="tr"]').onclick=()=>openTraspaso(key,i);
-    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+p.nombre+"?")){state[key].splice(i,1);save();render();}};});
+    tr.querySelector('[data-act="del"]').onclick=()=>{if(confirm("¿Eliminar "+p.nombre+"?")){state[key].splice(i,1);save();render();}};
+    bindReorder(tr,key,i);});
   m.querySelector("#addR").onclick=()=>{state[key].push({codigo:"",codigoBarras:"",marca:"",nombre:"Nuevo producto",proveedor:"",ultimaCompra:"",caducidad:"",costoCaja:"",costo:"",precio:"",presOriginal:"",equivPiezas:"",invOriginal:"",minOriginal:"",invIndividual:"",minIndividual:""});save();render();};
 }
 
@@ -1046,7 +1067,7 @@ function openEntrada(){
   const ent={factura:"",pago:"Efectivo",prov:"",fecha:new Date().toISOString().slice(0,10),lines:[{}],q:""};
   const host=document.getElementById("modalHost");
   function prodOptions(selKey){let o='<option value="">— Selecciona producto —</option>';
-    BUY.forEach(cfg=>(state[cfg.cat]||[]).forEach((it,i)=>{const prov=(it[cfg.prov]||"").trim();if(ent.prov&&prov!==ent.prov)return;if(ent.q){const qq=ent.q.toLowerCase();if(cfg.name(it).toLowerCase().indexOf(qq)<0&&String(it.codigoBarras||"").toLowerCase().indexOf(qq)<0&&String(it.marca||"").toLowerCase().indexOf(qq)<0)return;}const key=cfg.cat+":"+i;const g=presDefault(cfg.cat,it);o+=`<option value="${key}" ${key===selKey?"selected":""}>${esc(cfg.name(it))}${g?" ("+esc(g)+")":""}${it.marca?" · "+esc(it.marca):""}${prov?" · "+esc(prov):""}</option>`;}));return o;}
+    BUY.forEach(cfg=>(state[cfg.cat]||[]).forEach((it,i)=>{const prov=(it[cfg.prov]||"").trim();if(ent.prov&&prov!==ent.prov)return;if(ent.q){const qq=ent.q.toLowerCase();if(cfg.name(it).toLowerCase().indexOf(qq)<0&&String(it.codigoBarras||"").toLowerCase().indexOf(qq)<0&&String(it.marca||"").toLowerCase().indexOf(qq)<0)return;}const key=cfg.cat+":"+i;const g=presDefault(cfg.cat,it);const nm=cfg.name(it);const mk=(it.marca||"").trim();const dupM=mk&&nm.toLowerCase().indexOf(mk.toLowerCase())>=0;o+=`<option value="${key}" ${key===selKey?"selected":""}>${esc(nm)}${g?" ("+esc(g)+")":""}${(mk&&!dupM)?" · "+esc(mk):""}${prov?" · "+esc(prov):""}</option>`;}));return o;}
   function curCost(key){if(!key)return null;const a=key.split(":"),cat=a[0],i=+a[1],cfg=buyCfg(cat);return +state[cat][i][cfg.cost]||0;}
   function draw(){
     host.innerHTML=`<div class="modal-bg"><div class="modal" style="max-width:780px">
